@@ -124,4 +124,4 @@ If you wish to contribute to this project, please fork the repository, make your
 
 ## License
 
-This project is under the MIT License. See the `LICENSE` file for more details.
+This project is under the MIT License. See the [LICENSE](LICENSE.md) file for more details.
