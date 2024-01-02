@@ -4,7 +4,7 @@
 This project is a Minimal REST API under .NET 8 for sending e-mails via SMTP from a `Contact Form`.
 It uses MailKit and MimeKit for constructing and sending emails and Xunit for integration tests.
 
-https://github.com/BabylooPro/SendEmail.csharp/assets/35376790/cf8e36a2-6eb6-45fd-bbfc-dbf9eb498b4f
+https://github.com/BabylooPro/ContactForm.csharp/assets/35376790/cf8e36a2-6eb6-45fd-bbfc-dbf9eb498b4f
 
 ## Prerequisites
 
@@ -18,17 +18,17 @@ To run this project, you will need:
 Clone the repository to your local machine using the following command:
 
 ```bash
-git clone https://github.com/BabylooPro/SendEmail.csharp.git
+git clone https://github.com/BabylooPro/ContactForm.csharp.git
 ```
 
 Navigate to the cloned project's folder:
 
 ```bash
 For the API solution
-cd SendEmail.csharp/SendEmail.MinimalAPI
+cd ContactForm.csharp/ContactForm.MinimalAPI
 
 For the Testing solution
-cd SendEmail.csharp/SendEmail.Tests
+cd ContactForm.csharp/ContactForm.Tests
 ```
 
 ## Project Configuration
@@ -38,7 +38,7 @@ Before launching the application, it is necessary to configure the environment v
 ### Environment Variable Configuration
 
 #### *Option 1: Using Command Line*
-Run the following command in your terminal from `SendEmail.csharp/SendEmail.MinimalAPI` to automatically generate the `.env` file at the root of the `SendEmail.MinimalAPI` project. This command creates the file with the necessary configuration keys, but you will still need to fill them in with the appropriate values.
+Run the following command in your terminal from `ContactForm.csharp/ContactForm.MinimalAPI` to automatically generate the `.env` file at the root of the `ContactForm.MinimalAPI` project. This command creates the file with the necessary configuration keys, but you will still need to fill them in with the appropriate values.
 
 On macOS and Linux:
 ```bash
@@ -62,7 +62,7 @@ On Windows (PowerShell):
 *After running the appropriate command for your operating system, open the `.env` file and enter the values corresponding to your SMTP configuration next to each key.*
 
 #### *Option 2: Manual Creation*
-Manually create a `.env` file at the root of the SendEmail.MinimalAPI solution and add the following lines, replacing the bracketed values with your own SMTP configuration information:
+Manually create a `.env` file at the root of the ContactForm.MinimalAPI solution and add the following lines, replacing the bracketed values with your own SMTP configuration information:
 
 ```env
 SMTP_HOST=[your_smtp_server]
@@ -86,7 +86,7 @@ dotnet build
 
 ## Starting the Application
 
-To start the application, run the following command from the `SendEmail.MinimalAPI` folder:
+To start the application, run the following command from the `ContactForm.MinimalAPI` folder:
 
 ```bash
 dotnet run
@@ -110,7 +110,7 @@ You can use `curl` or a tool like Postman to make this request.
 
 ## Running Tests
 
-To run the tests, use the following command in folder SendEmail.MinimalAPI from terminal:
+To run the tests, use the following command in folder ContactForm.MinimalAPI from terminal:
 
 ```bash
 dotnet test
