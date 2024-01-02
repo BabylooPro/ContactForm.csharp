@@ -85,8 +85,8 @@ public partial class Program
             {
                 // CREATING AND CONFIGURING EMAIL MESSAGE
                 var emailMessage = new MimeMessage();
-                emailMessage.From.Add(new MailboxAddress("", $"{smtpEmail}")); // portfolio@maxremy.dev
-                emailMessage.To.Add(new MailboxAddress("", $"{receptionEmail}")); // maxremy.dev@gmail.com
+                emailMessage.From.Add(new MailboxAddress("", $"{smtpEmail}")); // Sender of email
+                emailMessage.To.Add(new MailboxAddress("", $"{receptionEmail}")); // Receiver of email
                 emailMessage.To.Add(new MailboxAddress("", $"{request.Email}")); // A copy of email for user who uses "Contact Form" service
                 emailMessage.Subject = "New Message from Contact Form";
                 emailMessage.Body = new TextPart("plain")
@@ -125,28 +125,28 @@ public partial class Program
                 }
 
                 // LOGGING SUCCESS OF SENDING
-                logger.LogInformation($"SUCCESS: EMAIL SENT TO {smtpEmail?.ToUpper()} & {receptionEmail?.ToUpper()} FROM {request.Email?.ToUpper()}", request.Email);
+                logger.LogInformation($"CONTACT FORM SUCCESS: EMAIL SENT TO {smtpEmail?.ToUpper()} & {receptionEmail?.ToUpper()} FROM {request.Email?.ToUpper()}", request.Email);
                 return Results.Ok(new { Message = "SUCCESS: EMAIL SENT" });
 
             }
             catch (FormatException ex)
             {
-                logger.LogError(ex, $"ERROR: FAILED TO SEND EMAIL TO {smtpEmail?.ToUpper()} FROM {request.Email?.ToUpper()}", request.Email);
+                logger.LogError(ex, $"CONTACT FORM ERROR: FAILED TO SEND EMAIL TO {smtpEmail?.ToUpper()} FROM {request.Email?.ToUpper()}", request.Email);
                 return Results.BadRequest(new { Message = $"FORMAT ERROR: {ex.Message}" });
             }
             catch (SmtpCommandException ex)
             {
-                logger.LogError(ex, $"ERROR: FAILED TO SEND EMAIL TO {smtpEmail?.ToUpper()} FROM {request.Email?.ToUpper()}", request.Email);
+                logger.LogError(ex, $"CONTACT FORM ERROR: FAILED TO SEND EMAIL TO {smtpEmail?.ToUpper()} FROM {request.Email?.ToUpper()}", request.Email);
                 return Results.BadRequest(new { Message = $"SMTP COMMAND ERROR: {ex.Message}" });
             }
             catch (SmtpProtocolException ex)
             {
-                logger.LogError(ex, $"ERROR: FAILED TO SEND EMAIL TO {smtpEmail?.ToUpper()} FROM {request.Email?.ToUpper()}", request.Email);
+                logger.LogError(ex, $"CONTACT FORM ERROR: FAILED TO SEND EMAIL TO {smtpEmail?.ToUpper()} FROM {request.Email?.ToUpper()}", request.Email);
                 return Results.BadRequest(new { Message = $"SMTP PROTOCOL ERROR: {ex.Message}" });
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"ERROR: FAILED TO SEND EMAIL TO {smtpEmail?.ToUpper()} FROM {request.Email?.ToUpper()}", request.Email);
+                logger.LogError(ex, $"CONTACT FORM ERROR: FAILED TO SEND EMAIL TO {smtpEmail?.ToUpper()} FROM {request.Email?.ToUpper()}", request.Email);
                 return Results.BadRequest(new { Message = $"UNEXPECTED ERROR: {ex.Message}" });
             }
         });
