@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SendEmail.MinimalAPI\SendEmail.MinimalAPI.csproj" />
+    <ProjectReference Include="..\ContactForm.MinimalAPI\ContactForm.MinimalAPI.csproj" />
   </ItemGroup>
 
   <ItemGroup>

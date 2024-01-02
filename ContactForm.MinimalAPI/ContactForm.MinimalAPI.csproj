@@ -16,6 +16,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="SendEmail.Tests" />
+    <InternalsVisibleTo Include="ContactForm.Tests" />
   </ItemGroup>
 </Project>

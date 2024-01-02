@@ -10,7 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.VisualStudio.TestPlatform.TestHost;
 
-namespace SendEmail.Tests
+namespace ContactForm.Tests
 {
     public class CustomWebApplicationFactory<TStartup> : WebApplicationFactory<TStartup> where TStartup : class
     {
@@ -20,13 +20,13 @@ namespace SendEmail.Tests
             builder.ConfigureAppConfiguration(config =>
             {
                 // Determining path to .env file used for configuration
-                // Assuming that test executable is located in "sendemail.tests/bin/debug/net8.0/" folder
-                // This path uses a series of ".." to go up in folder hierarchy to reach root of "sendemail.minimalapi" project
+                // Assuming that test executable is located in "ContactForm.tests/bin/debug/net8.0/" folder
+                // This path uses a series of ".." to go up in folder hierarchy to reach root of "ContactForm.minimalapi" project
                 // This allows access to .env file located at this root, using a relative path suitable for project structure
                 var envFilePath = Path.GetFullPath(Path.Combine(
                     AppContext.BaseDirectory,
                     "..", "..", "..", "..",
-                    "SendEmail.MinimalAPI", ".env"
+                    "ContactForm.MinimalAPI", ".env"
                 ));
 
                 // LOADING ENVIRONMENT VARIABLES IF .ENV FILE EXISTS
@@ -62,7 +62,7 @@ namespace SendEmail.Tests
 
         // TEST VERIFYING THAT SENDING A VALID EMAIL RETURNS A SUCCESS STATUS
         [Fact]
-        public async Task Post_SendEmail_Endpoint_Returns_Success_With_Valid_EmailRequest()
+        public async Task Post_ContactForm_Endpoint_Returns_Success_With_Valid_EmailRequest()
         {
             // ARRANGE
             var emailRequest = new EmailRequest
@@ -80,7 +80,7 @@ namespace SendEmail.Tests
 
         // TEST VERIFYING THAT SENDING AN INVALID EMAIL RETURNS AN INCORRECT REQUEST STATUS
         [Fact]
-        public async Task Post_SendEmail_Endpoint_Returns_BadRequest_With_Invalid_EmailRequest()
+        public async Task Post_ContactForm_Endpoint_Returns_BadRequest_With_Invalid_EmailRequest()
         {
             // ARRANGE
             var emailRequest = new EmailRequest

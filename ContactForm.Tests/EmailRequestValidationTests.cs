@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
-namespace SendEmail.Tests
+namespace ContactForm.Tests
 {
     public class EmailRequestValidationTests
     {

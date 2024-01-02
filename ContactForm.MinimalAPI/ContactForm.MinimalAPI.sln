@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 25.0.1706.7
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SendEmail.MinimalAPI", "SendEmail.MinimalAPI.csproj", "{F98B6FF8-CEB5-4F79-843C-2237B09D14A7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ContactForm.MinimalAPI", "ContactForm.MinimalAPI.csproj", "{F98B6FF8-CEB5-4F79-843C-2237B09D14A7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SendEmail.Tests", "..\SendEmail.Tests\SendEmail.Tests.csproj", "{8744A549-2D8F-4992-B9AE-F7E2EE4C883A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ContactForm.Tests", "..\ContactForm.Tests\ContactForm.Tests.csproj", "{8744A549-2D8F-4992-B9AE-F7E2EE4C883A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
