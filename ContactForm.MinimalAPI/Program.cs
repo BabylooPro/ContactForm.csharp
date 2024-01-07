@@ -11,16 +11,8 @@ public partial class Program
 {
     public static void Main(string[] args)
     {
-        //TODO: RETRIEVING USER CHOICES FOR ENVIRONMENT AND LOGGING TYPE VIA STARTUPHELPER
-        // var (environment, loggingType) = StartupHelper.GetStartupOptions();
-        // Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", environment);
-
         // INITIAL CONFIGURATION AND ENVIRONMENT VARIABLE LOADING
         var builder = WebApplication.CreateBuilder(args);
-
-        //TODO: APPLICATION CONFIGURATION VIA USER CHOICE STARTUPHELPER AFTER BUILDER INITIAL
-        // StartupHelper.ConfigureApp(builder, environment, loggingType);
-
 
         // JSON SERVICE CONFIGURATION
         builder.Services.Configure<JsonOptions>(options =>
