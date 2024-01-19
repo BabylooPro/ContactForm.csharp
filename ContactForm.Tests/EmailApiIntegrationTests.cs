@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.VisualStudio.TestPlatform.TestHost;
+using ContactForm.MinimalAPI;
 
 namespace ContactForm.Tests
 {
@@ -51,11 +52,11 @@ namespace ContactForm.Tests
     }
 
     // INTEGRATION TEST CLASS FOR EMAIL API
-    public class EmailApiIntegrationTests : IClassFixture<CustomWebApplicationFactory<Program>>
+    public class EmailApiIntegrationTests : IClassFixture<CustomWebApplicationFactory<ContactForm.MinimalAPI.Program>>
     {
         private readonly HttpClient _client;
 
-        public EmailApiIntegrationTests(CustomWebApplicationFactory<Program> factory)
+        public EmailApiIntegrationTests(CustomWebApplicationFactory<ContactForm.MinimalAPI.Program> factory)
         {
             _client = factory.CreateClient();
         }

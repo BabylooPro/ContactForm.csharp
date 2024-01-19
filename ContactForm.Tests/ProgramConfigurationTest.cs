@@ -2,11 +2,12 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net.Http;
 using System.Threading.Tasks;
+using ContactForm.MinimalAPI;
 
 public class ProgramConfigurationTest : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
- 
+
     public ProgramConfigurationTest(WebApplicationFactory<Program> factory)
     {
         _factory = factory;
