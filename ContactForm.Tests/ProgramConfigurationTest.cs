@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net.Http;
 using System.Threading.Tasks;
 using ContactForm.MinimalAPI;
+using System.Net;
 
 public class ProgramConfigurationTest : IClassFixture<WebApplicationFactory<Program>>
 {
@@ -25,5 +26,8 @@ public class ProgramConfigurationTest : IClassFixture<WebApplicationFactory<Prog
 
         // ASSERT - VERIFY THAT RESPONSE INDICATES SUCCESS (E.G., HTTP 200 STATUS)
         response.EnsureSuccessStatusCode();
+
+        // ADDITIONAL ASSERT - VERIFY EXACT STATUS CODE
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 }
