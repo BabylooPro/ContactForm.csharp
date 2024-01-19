@@ -6,6 +6,14 @@ It uses MailKit and MimeKit for constructing and sending emails and Xunit for in
 
 https://github.com/BabylooPro/ContactForm.csharp/assets/35376790/cf8e36a2-6eb6-45fd-bbfc-dbf9eb498b4f
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=bugs)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
+
 ## Prerequisites
 
 To run this project, you will need:
@@ -125,3 +133,7 @@ If you wish to contribute to this project, please fork the repository, make your
 ## License
 
 This project is under the MIT License. See the [LICENSE](LICENSE) file for more details.
+
+---
+
+[![SonarCloud](https://sonarcloud.io/images/project_badges/sonarcloud-orange.svg)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
