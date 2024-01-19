@@ -9,7 +9,6 @@ https://github.com/BabylooPro/ContactForm.csharp/assets/35376790/cf8e36a2-6eb6-4
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
 [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
 [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=bugs)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
-[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
