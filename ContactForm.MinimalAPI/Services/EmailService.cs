@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MailKit.Security;
+using MimeKit.Utils;
 
 namespace ContactForm.MinimalAPI.Services
 {
@@ -47,7 +48,10 @@ namespace ContactForm.MinimalAPI.Services
                 emailMessage.From.Add(new MailboxAddress("", _smtpEmail));
                 emailMessage.To.Add(new MailboxAddress("", _receptionEmail));
                 emailMessage.To.Add(new MailboxAddress("", request.Email));
-                emailMessage.Subject = "New Message from Contact Form";
+
+                // GENERATING MESSAGE ID AND SETTING SUBJECT AND BODY
+                var messageId = Math.Abs(MimeUtils.GenerateMessageId().GetHashCode()).ToString();
+                emailMessage.Subject = $"New Message from Contact Form - {messageId}";
                 emailMessage.Body = new TextPart("plain")
                 {
                     Text = $"Name: {request.Username}\nEmail: {request.Email}\nMessage: {request.Message}"
