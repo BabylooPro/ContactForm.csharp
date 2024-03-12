@@ -103,7 +103,7 @@ The API will be accessible by default on `http://localhost:5108` for http and `h
 
 ## Using the API
 
-To send an email, use the `/send-email` endpoint with a POST request containing the following information:
+To send an email, use the `/api/email/send-email` endpoint with a POST request containing the following information:
 
 ```json
 {
