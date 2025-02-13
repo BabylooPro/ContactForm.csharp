@@ -1,12 +1,14 @@
+using ContactForm.MinimalAPI.Interfaces;
 using ContactForm.MinimalAPI.Models;
-using MailKit.Net.Smtp;
+using MailKit.Security;
+using Microsoft.Extensions.Options;
 using MimeKit;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MailKit.Security;
-using MimeKit.Utils;
+using System.Linq;
+using System.Threading;
 
 namespace ContactForm.MinimalAPI.Services
 {
@@ -15,64 +17,172 @@ namespace ContactForm.MinimalAPI.Services
     {
         // DEPENDENCY INJECTION
         private readonly ILogger<EmailService> _logger;
-        private readonly ISmtpClient _smtpClient;
-        private readonly string _smtpHost;
-        private readonly int _smtpPort;
-        private readonly string _smtpEmail;
-        private readonly string _smtpPassword;
-        private readonly string _receptionEmail;
+        private readonly SmtpSettings _smtpSettings;
+        private readonly ISmtpClientWrapper _smtpClient;
+        private readonly IEmailTrackingService _emailTracker;
 
         // CONSTRUCTOR INRIAIALIZING DEPENDENCY INJECTION
-        public EmailService(ILogger<EmailService> logger, ISmtpClient smtpClient)
+        public EmailService(
+            ILogger<EmailService> logger, 
+            IOptions<SmtpSettings> smtpSettings,
+            ISmtpClientWrapper smtpClient,
+            IEmailTrackingService emailTracker)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _smtpClient = smtpClient ?? throw new ArgumentNullException(nameof(smtpClient));
+            _smtpSettings = smtpSettings.Value;
+            _smtpClient = smtpClient;
+            _emailTracker = emailTracker;
+        }
 
-            _smtpHost = Environment.GetEnvironmentVariable("SMTP_HOST") ?? throw new InvalidOperationException("SMTP_HOST environment variable is not set.");
-            _smtpPort = int.TryParse(Environment.GetEnvironmentVariable("SMTP_PORT"), out var port) ? port : throw new InvalidOperationException("SMTP_PORT environment variable is not set or is not a valid number.");
-            _smtpEmail = Environment.GetEnvironmentVariable("SMTP_EMAIL") ?? throw new InvalidOperationException("SMTP_EMAIL environment variable is not set.");
-            _smtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD") ?? throw new InvalidOperationException("SMTP_PASSWORD environment variable is not set.");
-            _receptionEmail = Environment.GetEnvironmentVariable("RECEPTION_EMAIL") ?? throw new InvalidOperationException("RECEPTION_EMAIL environment variable is not set.");
+        // METHOD FOR GETTING SMTP PASSWORD
+        private string GetSmtpPassword(SmtpConfig config)
+        {
+            var envVar = $"SMTP_{config.Index}_PASSWORD";
+            var password = Environment.GetEnvironmentVariable(envVar);
+            
+            if (string.IsNullOrEmpty(password))
+            {
+                throw new InvalidOperationException($"Environment variable {envVar} is not set");
+            }
+            
+            return password;
+        }
+
+        // METHOD FOR GETTING SMTP CONFIG BY ID
+        public SmtpConfig GetSmtpConfigById(int id)
+        {
+            var config = _smtpSettings.Configurations.FirstOrDefault(x => x.Index == id);
+            if (config == null)
+            {
+                _logger.LogError("");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\nERROR: SMTP_{id} configuration not found. Available SMTP indexes: {string.Join(", ", _smtpSettings.Configurations.Select(x => x.Index))}\n");
+                Console.ResetColor();
+                throw new InvalidOperationException($"SMTP_{id} configuration not found");
+            }
+            return config;
+        }
+
+        // METHOD FOR GETTING ALL SMTP CONFIGS
+        public List<SmtpConfig> GetAllSmtpConfigs()
+        {
+            return _smtpSettings.Configurations;
         }
 
         // METHOD FOR SENDING EMAIL
-        public async Task<(bool IsSuccess, IEnumerable<string> Errors)> SendEmailAsync(EmailRequest request)
+        public async Task<bool> SendEmailAsync(EmailRequest request, int smtpId)
         {
-            var errors = new List<string>(); // LIST FOR STORING ERRORS
-
-            // TRY-CATCH BLOCK FOR SENDING EMAIL
             try
             {
-                // CREATING EMAIL MESSAGE
-                var emailMessage = new MimeMessage();
-                emailMessage.From.Add(new MailboxAddress("", _smtpEmail));
-                emailMessage.To.Add(new MailboxAddress("", _receptionEmail));
-                emailMessage.To.Add(new MailboxAddress("", request.Email));
-
-                // GENERATING MESSAGE ID AND SETTING SUBJECT AND BODY
-                var messageId = Math.Abs(MimeUtils.GenerateMessageId().GetHashCode()).ToString();
-                emailMessage.Subject = $"New Message from Contact Form - {messageId}";
-                emailMessage.Body = new TextPart("plain")
+                // CHECK IF EMAIL IS NULL
+                if (string.IsNullOrEmpty(request.Email))
                 {
-                    Text = $"Name: {request.Username}\nEmail: {request.Email}\nMessage: {request.Message}"
-                };
+                    throw new ArgumentNullException(nameof(request.Email), "Email cannot be null or empty");
+                }
 
-                // CONNECTING TO SMTP SERVER AND SENDING EMAIL
-                await _smtpClient.ConnectAsync(_smtpHost, _smtpPort, SecureSocketOptions.SslOnConnect);
-                await _smtpClient.AuthenticateAsync(_smtpEmail, _smtpPassword);
-                await _smtpClient.SendAsync(emailMessage);
-                await _smtpClient.DisconnectAsync(true);
+                // CHECK IF EMAIL IS UNIQUE
+                if (!await _emailTracker.IsEmailUnique(request.Email))
+                {
+                    _logger.LogWarning("");
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"Duplicate email detected from: {request.Email}");
+                    Console.ResetColor();
+                    throw new InvalidOperationException("This email has already been used to send a message");
+                }
 
-                // LOGGING EMAIL SENT SUCCESSFULLY
-                _logger.LogInformation("Email sent successfully.");
-                return (true, errors);
+                // VALIDATE SMTP CONFIG FIRST
+                var config = GetSmtpConfigById(smtpId);
+                if (config == null)
+                {
+                    throw new InvalidOperationException($"SMTP configuration with ID {smtpId} not found");
+                }
+
+                // CREATE EMAIL MESSAGE
+                var email = new MimeMessage();
+                
+                // SET EMAIL FROM AND TO
+                email.From.Add(new MailboxAddress(config.Email, config.Email));
+                email.To.Add(new MailboxAddress(_smtpSettings.ReceptionEmail, _smtpSettings.ReceptionEmail));
+                email.Subject = $"Message from {request.Username}";
+
+                // SET EMAIL BODY
+                var builder = new BodyBuilder();
+                builder.TextBody = $"""
+                New contact form submission:
+                From: {request.Email}
+                Name: {request.Username}
+                Message: {request.Message}
+                
+                """;
+
+                email.Body = builder.ToMessageBody(); 
+
+                // LOG EMAIL DETAILS
+                _logger.LogInformation("Email Details:\nFrom: {From}\nTo: {To}\nSubject: {Subject}\nBody: {Body}", 
+                    email.From.ToString(), 
+                    email.To.ToString(), 
+                    email.Subject,
+                    builder.TextBody);
+
+                // CONNECT TO SMTP SERVER
+                var cancellationToken = CancellationToken.None;
+                await _smtpClient.ConnectWithTokenAsync(config.Host, config.Port, SecureSocketOptions.SslOnConnect, cancellationToken);
+
+                // AUTHENTICATE WITH SMTP SERVER
+                await _smtpClient.AuthenticateWithTokenAsync(config.Email, GetSmtpPassword(config), cancellationToken);
+
+                // SEND EMAIL
+                await _smtpClient.SendWithTokenAsync(email, cancellationToken);
+
+                // DISCONNECT FROM SMTP SERVER
+                await _smtpClient.DisconnectWithTokenAsync(true, cancellationToken);
+
+                // LOG SUCCESS
+                _logger.LogInformation("");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"Email sent successfully using SMTP_{config.Index} ({config.Email} -> {_smtpSettings.ReceptionEmail})");
+                Console.ResetColor();
+
+                // IF EMAIL SENT SUCCESSFULLY, TRACK IT
+                await _emailTracker.TrackEmail(request.Email);
+                return true;
+            }
+            catch (InvalidOperationException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
-                // LOGGING FAILED TO SEND EMAIL
-                _logger.LogError(ex, "Failed to send email.");
-                errors.Add(ex.Message);
-                return (false, errors);
+                // LOG ERROR
+                _logger.LogError("");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Failed to send email using SMTP_{smtpId}: {ex.Message}");
+                Console.ResetColor();
+                
+                // TRY NEXT AVAILABLE SMTP IN SEQUENCE
+                var nextConfig = _smtpSettings.Configurations
+                    .Where(x => x.Index > smtpId)
+                    .OrderBy(x => x.Index)
+                    .FirstOrDefault();
+
+                // TRY NEXT SMTP CONFIG
+                if (nextConfig != null)
+                {
+                    _logger.LogInformation("");
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"Attempting to use next SMTP configuration (SMTP_{nextConfig.Index})");
+                    Console.ResetColor();
+                    return await SendEmailAsync(request, nextConfig.Index);
+                }
+                
+                return false; // RETURN FALSE IF NO SMTP CONFIG IS AVAILABLE
+            }
+            finally
+            {
+                if (_smtpClient.IsConnected)
+                {
+                    await _smtpClient.DisconnectWithTokenAsync(true, CancellationToken.None);
+                }
             }
         }
     }

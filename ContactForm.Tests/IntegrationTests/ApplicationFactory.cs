@@ -5,11 +5,14 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using MailKit.Net.Smtp;
 using ContactForm.MinimalAPI.Services;
+using ContactForm.MinimalAPI.Models;
+using ContactForm.MinimalAPI.Interfaces;
+using Microsoft.Extensions.Options;
 
 namespace ContactForm.Tests.IntegrationTests
 {
     // FACTORY FOR CREATING APPLICATION
-    public class ApplicationFactory<TEntryPoint> : WebApplicationFactory<TEntryPoint> where TEntryPoint : class
+    internal class ApplicationFactory : WebApplicationFactory<Program>
     {
         // CONFIGURING WEB HOST
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -17,23 +20,42 @@ namespace ContactForm.Tests.IntegrationTests
             // REMOVING EMAIL SERVICE AND ADDING MOCKED EMAIL SERVICE
             builder.ConfigureServices(services =>
             {
-                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IEmailService)); // GETTING EMAIL SERVICE
+                // GETTING EMAIL SERVICE DESCRIPTOR
+                var descriptor = services.SingleOrDefault(
+                    d => d.ServiceType == typeof(IEmailService));
 
-                // REMOVING EMAIL SERVICE IF IT EXISTS
+                // REMOVING EMAIL SERVICE IF EXISTS
                 if (descriptor != null)
                 {
                     services.Remove(descriptor);
                 }
 
-                // ADDING MOCKED EMAIL SERVICE
-                services.AddSingleton<IEmailService>(provider =>
+                // CONFIGURING TEST SMTP SETTINGS
+                var smtpSettings = new SmtpSettings
                 {
-                    // MOCKING LOGGER AND SMTP CLIENT
-                    var loggerMock = new Mock<ILogger<EmailService>>();
-                    var smtpClientMock = new Mock<ISmtpClient>();
+                    Configurations = new List<SmtpConfig>
+                    {
+                        new()
+                        {
+                            Host = "smtp.hostinger.com",
+                            Port = 465,
+                            Email = "test@example.com",
+                            Description = "Test SMTP",
+                            Index = 0
+                        }
+                    },
+                    ReceptionEmail = "reception@example.com"
+                };
 
-                    return new EmailService(loggerMock.Object, smtpClientMock.Object); // RETURNING MOCKED EMAIL SERVICE
+                // CONFIGURING TEST SMTP SETTINGS
+                services.Configure<SmtpSettings>(options =>
+                {
+                    options.Configurations = smtpSettings.Configurations;
+                    options.ReceptionEmail = smtpSettings.ReceptionEmail;
                 });
+
+                // REGISTER TEST EMAIL SERVICE
+                services.AddScoped<IEmailService, EmailService>();
             });
         }
     }

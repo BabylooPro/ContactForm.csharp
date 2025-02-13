@@ -1,71 +1,101 @@
 using Xunit;
 using Moq;
-using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Mvc;
 using ContactForm.MinimalAPI.Controllers;
 using ContactForm.MinimalAPI.Models;
-using ContactForm.MinimalAPI.Services;
+using ContactForm.MinimalAPI.Interfaces;
+using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
-namespace ContactForm.Tests.Controllers
+namespace ContactForm.Tests.ControllersTests
 {
     // UNIT TESTS FOR EMAIL CONTROLLER
     public class EmailControllerTests
     {
-        // TEST FOR SENDING EMAIL RETURNS OK RESULT WHEN EMAIL IS SENT SUCCESSFULLY
-        [Fact]
-        public async Task SendEmail_ReturnsOkResult_WhenEmailIsSentSuccessfully()
+        private readonly Mock<IEmailService> _emailServiceMock;
+        private readonly Mock<ILogger<EmailController>> _loggerMock;
+        private readonly EmailController _controller;
+
+        public EmailControllerTests()
         {
-            // ARRANGE - MOCKING EMAIL SERVICE
-            var mockEmailService = new Mock<IEmailService>();
-            mockEmailService.Setup(service => service.SendEmailAsync(It.IsAny<EmailRequest>()))
-                .ReturnsAsync((true, new List<string>()));
-
-            var mockLogger = new Mock<ILogger<EmailController>>();
-            var emailController = new EmailController(mockEmailService.Object, mockLogger.Object);
-
-            var emailRequest = new EmailRequest
-            {
-                Email = "test@example.com",
-                Username = "testuser",
-                Message = "Test message"
-            };
-
-            // ACT - CALLING SEND EMAIL METHOD
-            var result = await emailController.SendEmail(emailRequest);
-
-            // ASSERT - CHECKING IF RESULT IS OK
-            Assert.IsType<OkObjectResult>(result);
+            _emailServiceMock = new Mock<IEmailService>();
+            _loggerMock = new Mock<ILogger<EmailController>>();
+            var smtpSettingsMock = new Mock<IOptions<SmtpSettings>>();
+            smtpSettingsMock.Setup(x => x.Value).Returns(new SmtpSettings());
+            _controller = new EmailController(_emailServiceMock.Object, _loggerMock.Object, smtpSettingsMock.Object);
         }
 
-        // TEST FOR SENDING EMAIL RETURNS BAD REQUEST WHEN MODEL STATE IS INVALID
         [Fact]
-        public async Task SendEmail_ReturnsBadRequest_WhenEmailServiceReportsFailure()
+        public async Task SendEmail_ValidRequest_ReturnsOkResult()
         {
-            // ARRANGE - MOCKING EMAIL SERVICE
-            var mockEmailService = new Mock<IEmailService>();
-            mockEmailService.Setup(service => service.SendEmailAsync(It.IsAny<EmailRequest>()))
-                .ReturnsAsync((false, new List<string> { "Error sending email" }));
-
-            var mockLogger = new Mock<ILogger<EmailController>>();
-            var emailController = new EmailController(mockEmailService.Object, mockLogger.Object);
-
-            var emailRequest = new EmailRequest
+            // ARRANGE - SETUP
+            var request = new EmailRequest
             {
                 Email = "test@example.com",
-                Username = "testuser",
+                Username = "Test User",
                 Message = "Test message"
             };
+            _emailServiceMock.Setup(x => x.SendEmailAsync(It.IsAny<EmailRequest>(), It.IsAny<int>()))
+                            .ReturnsAsync(true);
 
-            // ACT - CALLING SEND EMAIL METHOD
-            var result = await emailController.SendEmail(emailRequest);
+            // ACT - SEND EMAIL
+            var result = await _controller.SendEmail(request, 0);
 
-            // ASSERT - CHECKING IF RESULT IS BAD REQUEST
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            var errorMessages = Assert.IsAssignableFrom<IEnumerable<string>>(badRequestResult.Value);
-            Assert.Contains("Error sending email", errorMessages);
+            // ASSERT - CHECK RESULT
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal("Email sent successfully using SMTP_0 ( -> )", okResult.Value);
+        }
 
+        [Fact]
+        public async Task SendEmail_FailedToSend_ReturnsInternalServerError()
+        {
+            // ARRANGE - SETUP
+            var request = new EmailRequest
+            {
+                Email = "test@example.com",
+                Username = "Test User",
+                Message = "Test message"
+            };
+            _emailServiceMock.Setup(x => x.SendEmailAsync(It.IsAny<EmailRequest>(), It.IsAny<int>()))
+                            .ReturnsAsync(false);
+
+            // ACT - SEND EMAIL
+            var result = await _controller.SendEmail(request, 0);
+
+            // ASSERT - CHECK RESULT
+            var statusCodeResult = Assert.IsType<ObjectResult>(result);
+            Assert.Equal(500, statusCodeResult.StatusCode);
+            Assert.Equal("Failed to send email after trying all available SMTP configurations", statusCodeResult.Value);
+        }
+
+        [Fact]
+        public void GetSmtpConfigs_ReturnsConfigs()
+        {
+            // ARRANGE - SETUP
+            var configs = new List<SmtpConfig>
+            {
+                new()
+                {
+                    Host = "smtp.example.com",
+                    Port = 465,
+                    Email = "test@example.com",
+                    Description = "Test SMTP",
+                    Index = 0
+                }
+            };
+            _emailServiceMock.Setup(x => x.GetAllSmtpConfigs())
+                            .Returns(configs);
+
+            // ACT - GET SMTP CONFIGS
+            var result = _controller.GetSmtpConfigs();
+
+            // ASSERT - CHECK RESULT
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var returnedConfigs = Assert.IsType<List<SmtpConfig>>(okResult.Value);
+            Assert.Single(returnedConfigs);
+            Assert.Equal("smtp.example.com", returnedConfigs[0].Host);
         }
     }
 }

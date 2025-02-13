@@ -1,11 +1,13 @@
 using ContactForm.MinimalAPI.Models;
 using System.Threading.Tasks;
 
-namespace ContactForm.MinimalAPI.Services
+namespace ContactForm.MinimalAPI.Interfaces
 {
     // INTERFACE FOR SENDING EMAILS
     public interface IEmailService
     {
-        Task<(bool IsSuccess, IEnumerable<string> Errors)> SendEmailAsync(EmailRequest request); // METHOD FOR SENDING EMAIL
+        Task<bool> SendEmailAsync(EmailRequest request, int smtpId);
+        SmtpConfig GetSmtpConfigById(int id);
+        List<SmtpConfig> GetAllSmtpConfigs();
     }
 }

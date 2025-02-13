@@ -1,14 +1,16 @@
 using Xunit;
 using Moq;
-using MailKit.Net.Smtp;
-using MimeKit;
-using ContactForm.MinimalAPI.Models;
 using ContactForm.MinimalAPI.Services;
+using ContactForm.MinimalAPI.Models;
+using ContactForm.MinimalAPI.Interfaces;
 using Microsoft.Extensions.Logging;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using System;
+using System.Collections.Generic;
 using MailKit.Security;
-using MailKit;
+using Microsoft.Extensions.DependencyInjection;
+using MimeKit;
+using System.Threading;
 
 namespace ContactForm.Tests.IntegrationTests
 {
@@ -17,7 +19,8 @@ namespace ContactForm.Tests.IntegrationTests
     {
         // DEPENDENCY INJECTION
         private readonly Mock<ILogger<EmailService>> _loggerMock;
-        private readonly Mock<ISmtpClient> _smtpClientMock;
+        private readonly Mock<IOptions<SmtpSettings>> _smtpSettingsMock;
+        private readonly Mock<ISmtpClientWrapper> _smtpClientMock;
         private readonly EmailService _emailService;
 
         // CONSTRUCTOR INRIAIALIZING DEPENDENCY INJECTION
@@ -25,75 +28,143 @@ namespace ContactForm.Tests.IntegrationTests
         {
             // MOCKING LOGGER AND SMTP CLIENT
             _loggerMock = new Mock<ILogger<EmailService>>();
-            _smtpClientMock = new Mock<ISmtpClient>();
-
+            _smtpClientMock = new Mock<ISmtpClientWrapper>();
+            
             // SETTING ENVIRONMENT VARIABLES
-            Environment.SetEnvironmentVariable("SMTP_HOST", "smtp.example.com");
-            Environment.SetEnvironmentVariable("SMTP_PORT", "587");
-            Environment.SetEnvironmentVariable("SMTP_EMAIL", "your-email@example.com");
-            Environment.SetEnvironmentVariable("SMTP_PASSWORD", "your-password");
-            Environment.SetEnvironmentVariable("RECEPTION_EMAIL", "reception@example.com");
+            var smtpSettings = new SmtpSettings
+            {
+                Configurations = new List<SmtpConfig>
+                {
+                    new()
+                    {
+                        Host = "smtp.hostinger.com",
+                        Port = 465,
+                        Email = "test@example.com",
+                        Description = "Test SMTP",
+                        Index = 0
+                    }
+                },
+                ReceptionEmail = "reception@example.com"
+            };
+            
+            _smtpSettingsMock = new Mock<IOptions<SmtpSettings>>();
+            _smtpSettingsMock.Setup(x => x.Value).Returns(smtpSettings);
 
-            _emailService = new EmailService(_loggerMock.Object, _smtpClientMock.Object); // CREATING EMAIL SERVICE
+            // SETUP ENVIRONMENT VARIABLES FOR PASSWORDS
+            Environment.SetEnvironmentVariable("SMTP_0_PASSWORD", "test-password");
+
+            // SETUP SMTP CLIENT MOCK
+            _smtpClientMock.Setup(x => x.ConnectWithTokenAsync(
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<SecureSocketOptions>(),
+                It.IsAny<CancellationToken>()
+            )).Returns(Task.CompletedTask);
+
+            _smtpClientMock.Setup(x => x.AuthenticateWithTokenAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()
+            )).Returns(Task.CompletedTask);
+
+            _smtpClientMock.Setup(x => x.SendWithTokenAsync(
+                It.IsAny<MimeMessage>(),
+                It.IsAny<CancellationToken>()
+            )).ReturnsAsync(string.Empty);
+
+            _smtpClientMock.Setup(x => x.DisconnectWithTokenAsync(
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()
+            )).Returns(Task.CompletedTask);
+
+            _smtpClientMock.SetupGet(x => x.IsConnected).Returns(false);
+
+            // SETUP EMAIL TRACKER MOCK
+            var emailTrackerMock = new Mock<IEmailTrackingService>();
+            emailTrackerMock.Setup(x => x.IsEmailUnique(It.IsAny<string>())).ReturnsAsync(true);
+
+            _emailService = new EmailService(_loggerMock.Object, _smtpSettingsMock.Object, _smtpClientMock.Object, emailTrackerMock.Object);
         }
 
         // TEST FOR SENDING EMAIL SUCCEEDS WHEN SMTP CLIENT OPERATES NORMALLY
         [Fact]
-        public async Task SendEmailAsync_Succeeds_WhenSmtpClientOperatesNormally()
+        public async Task SendEmailAsync_ValidRequest_ReturnsTrue()
         {
             // ARRANGE - CREATING EMAIL REQUEST
-            var emailRequest = new EmailRequest
+            var request = new EmailRequest
             {
                 Email = "sender@example.com",
-                Username = "Sender Name",
-                Message = "Test Message"
+                Username = "Test User",
+                Message = "Test message"
             };
 
-            _smtpClientMock.Setup(x => x.ConnectAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<SecureSocketOptions>(), It.IsAny<CancellationToken>()))
-                           .Returns(Task.CompletedTask);
-
-            _smtpClientMock.Setup(x => x.AuthenticateAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                           .Returns(Task.CompletedTask);
-
-            _smtpClientMock.Setup(x => x.SendAsync(It.IsAny<MimeMessage>(), It.IsAny<CancellationToken>(), It.IsAny<ITransferProgress>()))
-                           .Returns(Task.FromResult(string.Empty));
-
-            _smtpClientMock.Setup(x => x.DisconnectAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-                           .Returns(Task.CompletedTask);
-
             // ACT - SENDING EMAIL
-            var (isSuccess, errors) = await _emailService.SendEmailAsync(emailRequest);
+            var result = await _emailService.SendEmailAsync(request, 0);
 
             // ASSERT - CHECKING IF EMAIL IS SENT SUCCESSFULLY
-            Assert.True(isSuccess);
-            Assert.Empty(errors);
-            _smtpClientMock.Verify(x => x.SendAsync(It.IsAny<MimeMessage>(), It.IsAny<CancellationToken>(), It.IsAny<ITransferProgress>()), Times.Once);
+            Assert.True(result);
+            _smtpClientMock.Verify(
+                x => x.SendWithTokenAsync(It.IsAny<MimeMessage>(), It.IsAny<CancellationToken>()),
+                Times.Once
+            );
         }
 
         // TEST FOR SENDING EMAIL FAILS WHEN SMTP CLIENT FAILS TO CONNECT
         [Fact]
-        public async Task SendEmailAsync_Fails_WhenSmtpClientFailsToConnect()
+        public async Task SendEmailAsync_InvalidSmtpId_ThrowsException()
         {
             // ARRANGE - CREATING EMAIL REQUEST
-            var emailRequest = new EmailRequest
+            var request = new EmailRequest
             {
                 Email = "sender@example.com",
-                Username = "Sender Name",
-                Message = "Test Message"
+                Username = "Test User",
+                Message = "Test message"
             };
 
-            _smtpClientMock.Setup(x => x.ConnectAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<SecureSocketOptions>(), It.IsAny<CancellationToken>()))
-                           .ThrowsAsync(new Exception("Failed to connect to SMTP server."));
+            // ACT - SEND EMAIL
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => _emailService.SendEmailAsync(request, 999)
+            );
 
-            // ACT - SENDING EMAIL
-            var (isSuccess, errors) = await _emailService.SendEmailAsync(emailRequest);
+            // ASSERT - CHECK RESULT
+            Assert.Contains("SMTP_999 configuration not found", exception.Message);
+        }
+        
+        // TEST FOR GETTING SMTP CONFIG BY ID
+        [Fact]
+        public void GetSmtpConfigById_ValidId_ReturnsConfig()
+        {
+            // ACT - GET SMTP CONFIG
+            var config = _emailService.GetSmtpConfigById(0);
 
-            // ASSERT - CHECKING IF EMAIL SENDING FAILED
-            Assert.False(isSuccess);
-            Assert.NotEmpty(errors);
-            Assert.Contains("Failed to connect to SMTP server.", errors);
+            // ASSERT - CHECK RESULT
+            Assert.NotNull(config);
+            Assert.Equal("smtp.hostinger.com", config.Host);
+        }
 
-            _smtpClientMock.Verify(x => x.SendAsync(It.IsAny<MimeMessage>(), It.IsAny<CancellationToken>(), It.IsAny<ITransferProgress>()), Times.Never);
+        // TEST FOR GETTING SMTP CONFIG BY ID FAILS WHEN CONFIG IS NOT FOUND
+        [Fact]
+        public void GetSmtpConfigById_InvalidId_ThrowsException()
+        {
+            // ACT - GET SMTP CONFIG
+            var exception = Assert.Throws<InvalidOperationException>(
+                () => _emailService.GetSmtpConfigById(999)
+            );
+
+            // ASSERT - CHECK RESULT
+            Assert.Contains("SMTP_999 configuration not found", exception.Message);
+        }
+
+        // TEST FOR GETTING ALL SMTP CONFIGS
+        [Fact]
+        public void GetAllSmtpConfigs_ReturnsAllConfigs()
+        {
+            // ACT - GET SMTP CONFIGS
+            var configs = _emailService.GetAllSmtpConfigs();
+
+            // ASSERT - CHECK RESULT
+            Assert.Single(configs);
+            Assert.Equal("smtp.hostinger.com", configs[0].Host);
         }
     }
 }
