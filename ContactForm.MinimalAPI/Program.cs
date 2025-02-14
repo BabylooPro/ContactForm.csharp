@@ -60,7 +60,8 @@ builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpS
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ISmtpTestService, SmtpTestService>();
 builder.Services.AddScoped<ISmtpClientWrapper, SmtpClientWrapper>();
-builder.Services.AddSingleton<IEmailTrackingService, EmailTrackingService>();
+builder.Services.AddScoped<IEmailTrackingService, EmailTrackingService>();
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 
 // ADDING CONTROLLER SUPPORT
 builder.Services.AddControllers();
