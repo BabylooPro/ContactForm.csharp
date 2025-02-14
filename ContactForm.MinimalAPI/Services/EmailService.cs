@@ -239,9 +239,19 @@ namespace ContactForm.MinimalAPI.Services
                     {
                         try
                         {
+                            if (string.IsNullOrEmpty(attachment.Base64Content))
+                            {
+                                throw new InvalidOperationException($"Base64 content is missing for attachment {attachment.FileName}");
+                            }
+
                             var content = Convert.FromBase64String(attachment.Base64Content);
-                            var contentType = attachment.ContentType ?? MimeTypes.GetMimeType(attachment.FileName);
-                            builder.Attachments.Add(attachment.FileName, content, ContentType.Parse(contentType));
+                            var contentType = attachment.ContentType ?? MimeTypes.GetMimeType(attachment.FileName ?? "unknown");
+                            builder.Attachments.Add(attachment.FileName ?? "unnamed", content, ContentType.Parse(contentType));
+                        }
+                        catch (FormatException ex)
+                        {
+                            _logger.LogError($"Invalid Base64 content for attachment {attachment.FileName}: {ex.Message}");
+                            throw new InvalidOperationException($"Invalid Base64 content for attachment {attachment.FileName}");
                         }
                         catch (Exception ex)
                         {
