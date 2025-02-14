@@ -21,6 +21,7 @@ namespace ContactForm.Tests.IntegrationTests
         private readonly Mock<ILogger<EmailService>> _loggerMock;
         private readonly Mock<IOptions<SmtpSettings>> _smtpSettingsMock;
         private readonly Mock<ISmtpClientWrapper> _smtpClientMock;
+        private readonly Mock<IEmailTemplateService> _templateServiceMock;
         private readonly EmailService _emailService;
 
         // CONSTRUCTOR INRIAIALIZING DEPENDENCY INJECTION
@@ -29,6 +30,7 @@ namespace ContactForm.Tests.IntegrationTests
             // MOCKING LOGGER AND SMTP CLIENT
             _loggerMock = new Mock<ILogger<EmailService>>();
             _smtpClientMock = new Mock<ISmtpClientWrapper>();
+            _templateServiceMock = new Mock<IEmailTemplateService>();
             
             // SETTING ENVIRONMENT VARIABLES
             var smtpSettings = new SmtpSettings
@@ -83,7 +85,51 @@ namespace ContactForm.Tests.IntegrationTests
             var emailTrackerMock = new Mock<IEmailTrackingService>();
             emailTrackerMock.Setup(x => x.IsEmailUnique(It.IsAny<string>())).ReturnsAsync(true);
 
-            _emailService = new EmailService(_loggerMock.Object, _smtpSettingsMock.Object, _smtpClientMock.Object, emailTrackerMock.Object);
+            // SETUP TEMPLATE SERVICE MOCK
+            _templateServiceMock.Setup(x => x.GetTemplate(It.IsAny<PredefinedTemplate>()))
+                .Returns(new EmailTemplate
+                {
+                    Name = "Test Template",
+                    Subject = "Test Subject",
+                    Body = "Test Body",
+                    IsHtml = false
+                });
+
+            _emailService = new EmailService(
+                _loggerMock.Object, 
+                _smtpSettingsMock.Object, 
+                _smtpClientMock.Object, 
+                emailTrackerMock.Object,
+                _templateServiceMock.Object
+            );
+        }
+
+        // TEST FOR SENDING EMAIL WITH TEMPLATE
+        [Fact]
+        public async Task SendEmailAsync_WithTemplate_ReturnsTrue()
+        {
+            // ARRANGE - CREATING EMAIL REQUEST WITH TEMPLATE
+            var request = new EmailRequest
+            {
+                Email = "sender@example.com",
+                Username = "Test User",
+                Message = "Test message",
+                Template = PredefinedTemplate.Modern
+            };
+
+            // ACT - SENDING EMAIL
+            var result = await _emailService.SendEmailAsync(request, 0);
+
+            // ASSERT - CHECKING IF EMAIL IS SENT SUCCESSFULLY AND TEMPLATE WAS USED
+            Assert.True(result);
+            _templateServiceMock.Verify(
+                x => x.GetTemplate(PredefinedTemplate.Modern),
+                Times.Once
+            );
+            _smtpClientMock.Verify(
+                x => x.SendWithTokenAsync(It.IsAny<MimeMessage>(), It.IsAny<CancellationToken>()),
+                Times.Once
+            );
         }
 
         // TEST FOR SENDING EMAIL SUCCEEDS WHEN SMTP CLIENT OPERATES NORMALLY
