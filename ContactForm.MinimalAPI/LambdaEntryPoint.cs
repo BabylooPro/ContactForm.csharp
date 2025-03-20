@@ -10,11 +10,19 @@ namespace ContactForm.MinimalAPI
         // CONFIGURE WEB HOST BUILDER
         protected override void Init(IWebHostBuilder builder)
         {
-            builder.ConfigureServices(services =>
-            {
-                var webBuilder = WebApplication.CreateBuilder();
-                Program.ConfigureServices(webBuilder, services);
-            });
+            builder
+                .ConfigureServices(services =>
+                {
+                    var webBuilder = WebApplication.CreateBuilder();
+                    Program.ConfigureServices(webBuilder, services);
+                })
+                .Configure(app =>
+                {
+                    app.UseCors(builder =>
+                        builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()
+                    );
+                    Program.ConfigureApp(app);
+                });
         }
 
         public override async Task<APIGatewayProxyResponse> FunctionHandlerAsync(

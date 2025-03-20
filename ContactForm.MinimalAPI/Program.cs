@@ -105,7 +105,7 @@ namespace ContactForm.MinimalAPI
             services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
         }
 
-        public static void ConfigureApp(WebApplication app) // INFO: OLD VERSION: IApplicationBuilder app
+        public static void ConfigureApp(IApplicationBuilder app) // INFO: OLD VERSION: WebApplication app (TO WORKING WITH EnsureSmtpConnectionsAsync)
         {
             // CONFIGURING MIDDLEWARE
             app.UseMiddleware<ErrorHandlingMiddleware>();
@@ -115,7 +115,7 @@ namespace ContactForm.MinimalAPI
             app.UseHttpsRedirection();
 
             // VERIFY SMTP CONNECTIONS BEFORE CONFIGURING ROUTES
-            EnsureSmtpConnectionsAsync(app.Services, app).GetAwaiter().GetResult();
+            // EnsureSmtpConnectionsAsync(app.Services, app).GetAwaiter().GetResult();
 
             // CONFIGURE ENDPOINT ROUTE FOR CONTROLLERS
             app.UseEndpoints(endpoints =>
