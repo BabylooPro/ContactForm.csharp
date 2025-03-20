@@ -1,100 +1,151 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Http.Json;
-using dotenv.net;
-using ContactForm.MinimalAPI.Services;
-using ContactForm.MinimalAPI.Middleware;
-using ContactForm.MinimalAPI.Utilities;
-using System.Collections.Generic;
 using System;
-using ContactForm.MinimalAPI.Models;
-using ContactForm.MinimalAPI.Interfaces;
-using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using ContactForm.MinimalAPI.Interfaces;
+using ContactForm.MinimalAPI.Middleware;
+using ContactForm.MinimalAPI.Models;
+using ContactForm.MinimalAPI.Services;
+using ContactForm.MinimalAPI.Utilities;
+using dotenv.net;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
-// LOADING ENVIRONMENT VARIABLES
-DotEnv.Load();
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ContactForm.Tests")]
 
-// CREATING WEB APPLICATION
-var builder = WebApplication.CreateBuilder();
-
-// GET SMTP CONFIGURATIONS FROM APPSETTINGS
-var config = builder.Configuration.GetSection("SmtpSettings:Configurations").Get<List<SmtpConfig>>();
-if (config == null)
+namespace ContactForm.MinimalAPI
 {
-    throw new InvalidOperationException("No SMTP configurations found in appsettings.json");
-}
-
-// DYNAMICALLY CHECK FOR MISSING SMTP PASSWORD VARIABLES
-var missingVariables = config
-    .Select(smtp => $"SMTP_{smtp.Index}_PASSWORD")
-    .Where(envVar => string.IsNullOrEmpty(Environment.GetEnvironmentVariable(envVar)))
-    .ToList();
-
-if (missingVariables.Count > 0)
-{
-    throw new InvalidOperationException($"The following environment variables are missing or empty: {string.Join(", ", missingVariables)}");
-}
-
-// ADDING SERVICES WITH CORS POLICY
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policy =>
+    public class Program
     {
-        policy.WithOrigins("https://example.com", "https://localhost:7129", "http://localhost:5108")
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
-    });
-});
+        public static void Main(string[] args)
+        {
+            // CREATING WEB APPLICATION
+            var builder = WebApplication.CreateBuilder(args);
+            ConfigureServices(builder, builder.Services);
 
-// ADDING JSON OPTIONS
-builder.Services.Configure<JsonOptions>(options =>
-{
-    options.SerializerOptions.PropertyNamingPolicy = null;
-});
+            // BUILDING WEB APPLICATION
+            var app = builder.Build();
+            ConfigureApp(app);
 
-// CONFIGURE SERVICES
-builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
-builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<ISmtpTestService, SmtpTestService>();
-builder.Services.AddScoped<ISmtpClientWrapper, SmtpClientWrapper>();
-builder.Services.AddScoped<IEmailTrackingService, EmailTrackingService>();
-builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+            // RUNNING WEB APPLICATION
+            app.Run();
+        }
 
-// ADDING CONTROLLER SUPPORT
-builder.Services.AddControllers();
+        public static void ConfigureServices(
+            WebApplicationBuilder builder,
+            IServiceCollection services
+        )
+        {
+            // LOADING ENVIRONMENT VARIABLES
+            DotEnv.Load();
 
-// BUILDING WEB APPLICATION
-var app = builder.Build();
+            // GET SMTP CONFIGURATIONS FROM APPSETTINGS
+            var config = builder
+                .Configuration.GetSection("SmtpSettings:Configurations")
+                .Get<List<SmtpConfig>>();
+            if (config == null)
+            {
+                throw new InvalidOperationException(
+                    "No SMTP configurations found in appsettings.json"
+                );
+            }
 
-// GET LOGGER
-var logger = app.Services.GetRequiredService<ILogger<Program>>();
+            // DYNAMICALLY CHECK FOR MISSING SMTP PASSWORD VARIABLES
+            var missingVariables = config
+                .Select(smtp => $"SMTP_{smtp.Index}_PASSWORD")
+                .Where(envVar => string.IsNullOrEmpty(Environment.GetEnvironmentVariable(envVar)))
+                .ToList();
 
-// TEST SMTP CONNECTIONS
-try
-{
-    using var scope = app.Services.CreateScope();
-    var smtpTestService = scope.ServiceProvider.GetRequiredService<ISmtpTestService>();
-    await smtpTestService.TestSmtpConnections();
+            if (missingVariables.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    $"The following environment variables are missing or empty: {string.Join(", ", missingVariables)}"
+                );
+            }
+
+            // ADDING SERVICES WITH CORS POLICY
+            services.AddCors(options =>
+            {
+                options.AddDefaultPolicy(policy =>
+                {
+                    policy
+                        .AllowAnyOrigin()
+                        .AllowAnyMethod()
+                        .AllowAnyHeader()
+                        .WithExposedHeaders(
+                            "Content-Type",
+                            "Authorization",
+                            "X-Api-Key",
+                            "X-Amz-Date",
+                            "X-Amz-Security-Token"
+                        );
+                });
+            });
+
+            // ADDING JSON OPTIONS
+            services.Configure<JsonOptions>(options =>
+            {
+                options.SerializerOptions.PropertyNamingPolicy = null;
+            });
+
+            // CONFIGURE SERVICES
+            services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
+            services.AddScoped<IEmailService, EmailService>();
+            services.AddScoped<ISmtpTestService, SmtpTestService>();
+            services.AddScoped<ISmtpClientWrapper, SmtpClientWrapper>();
+            services.AddScoped<IEmailTrackingService, EmailTrackingService>();
+            services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+
+            // ADDING CONTROLLER SUPPORT
+            services.AddControllers();
+
+            // ADDING LAMBDA SUPPORT
+            services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
+        }
+
+        public static void ConfigureApp(WebApplication app) // INFO: OLD VERSION: IApplicationBuilder app
+        {
+            // CONFIGURING MIDDLEWARE
+            app.UseMiddleware<ErrorHandlingMiddleware>();
+            app.UseCors();
+            app.UseRouting();
+            app.UseAuthorization();
+            app.UseHttpsRedirection();
+
+            // VERIFY SMTP CONNECTIONS BEFORE CONFIGURING ROUTES
+            EnsureSmtpConnectionsAsync(app.Services, app).GetAwaiter().GetResult();
+
+            // CONFIGURE ENDPOINT ROUTE FOR CONTROLLERS
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers(); // CONTROLLER SOURCE
+                endpoints.MapGet("/test", () => "Test: route is working"); // TESTING ROUTE
+            });
+        }
+
+        public static async Task EnsureSmtpConnectionsAsync(
+            IServiceProvider serviceProvider,
+            WebApplication app
+        )
+        {
+            // GET LOGGER
+            var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+
+            // TEST SMTP CONNECTIONS
+            try
+            {
+                using var scope = app.Services.CreateScope();
+                var smtpTestService = scope.ServiceProvider.GetRequiredService<ISmtpTestService>();
+                await smtpTestService.TestSmtpConnections();
+            }
+            catch (Exception)
+            {
+                logger.LogCritical("SMTP TEST FAILED");
+                await app.StopAsync();
+                Environment.Exit(1);
+            }
+        }
+    }
 }
-catch (Exception)
-{
-    logger.LogCritical("SMTP TEST FAILED");
-    await app.StopAsync();
-    Environment.Exit(1);
-}
-
-// CONFIGURING MIDDLEWARE
-app.UseMiddleware<ErrorHandlingMiddleware>();
-app.UseCors();
-
-// ADDING ROUTE FOR CONTROLLERS
-app.MapControllers();
-
-// CONFIGURING ENDPOINT
-app.MapGet("/test", () => "Test: route is working"); // TESTING ROUTE
-
-// RUNNING WEB APPLICATION
-app.Run();

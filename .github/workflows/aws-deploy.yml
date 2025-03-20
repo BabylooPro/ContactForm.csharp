@@ -1,0 +1,986 @@
+# INFO: THIS WORKFLOW DEPLOYS MINIMAL API TO AWS LAMBDA AND CONFIGURES API GATEWAY WITH AWS CLI
+# INFO: IAM USER REQUIRES PERMISSIONS TO EXECUTE THIS WORKFLOW (SEE IN FILE '.github/aws/iam-user-policy.json' AND 'README.md' FOR DETAILS)
+# INFO: ROLES CREATED BY THIS WORKFLOW ARE USED BY LAMBDA AND API GATEWAY FOR THEIR OPERATIONS (OPTIMIZED FOR SECURITY)
+# INFO: THIS WORKFLOW PRESERVES API GATEWAY ID ACROSS RUNS TO MAINTAIN CONSISTENT API ENDPOINTS
+# INFO: USAGE PLANS AND API KEYS ARE REUSED WHEN THEY ALREADY EXIST TO PREVENT CONFLICTS
+# INFO: PROPER ERROR HANDLING IS IMPLEMENTED TO ENSURE SMOOTH DEPLOYMENT EVEN WHEN RESOURCES ALREADY EXIST
+# INFO: GITHUB ACTIONS ANNOTATIONS ARE USED TO DISPLAY IMPORTANT INFORMATION LIKE API GATEWAY URL
+# INFO: ENHANCED SECURITY MEASURES ARE IN PLACE INCLUDING LEAST PRIVILEGE ACCESS AND RESOURCE MASKING
+# INFO: API GATEWAY CONFIGURED WITH UNIVERSAL CORS FOR MICROSERVICE USAGE ACROSS MULTIPLE PROJECTS
+
+# WARN: THERE IS DUPLICATION BETWEEN IAM USER PERMISSIONS AND THOSE OF CREATED ROLES
+# WARN: THIS DUPLICATION MAKES SOME PERMISSIONS IN ROLES REDUNDANT BECAUSE IAM USER ALREADY HAS THESE PERMISSIONS
+# WARN: THIS APPROACH IS NOT OPTIMAL FROM A SECURITY PERSPECTIVE (PRINCIPLE OF LEAST PRIVILEGE)
+# WARN: API GATEWAY ID IS VISIBLE IN LOGS BECAUSE URL ARE PUBLIC BUT API KEY IS PROPERLY MASKED FOR SECURITY
+# WARN: USAGE PLAN ASSOCIATION MIGHT FAIL IF THE API STAGE IS ALREADY ASSOCIATED WITH ANOTHER USAGE PLAN
+
+# TODO FIX: TO OPTIMIZE SECURITY, CONSIDER:
+# FIX: 1. LIMITING IAM USER TO ONLY PERMISSIONS NECESSARY TO CREATE/MANAGE ROLES
+# FIX: 2. ENSURING THAT CREATED ROLES HAVE SPECIFIC PERMISSIONS FOR THEIR RESPECTIVE TASKS
+# FIX: 3. USING SPECIFIC ARNS IN POLICIES RATHER THAN "*" TO LIMIT SCOPE OF PERMISSIONS
+# FIX: 4. IMPLEMENTING PROPER CLEANUP OF UNUSED RESOURCES TO PREVENT ACCUMULATION
+
+name: Deploy to AWS Lambda
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_tests:
+        description: "Run tests before deployment"
+        type: boolean
+        default: true
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # PROJECT-SPECIFIC SETTINGS
+  DEFAULT_FUNCTION_NAME: "ContactFormCsharp"
+  DEFAULT_RESOURCE_PREFIX: "ContactFormCsharp-"
+  DEFAULT_PROJECT_PATH: "ContactForm.MinimalAPI"
+  DEFAULT_TESTS_PATH: "ContactForm.Tests"
+  DEFAULT_LAMBDA_HANDLER: "ContactForm.MinimalAPI::ContactForm.MinimalAPI.LambdaEntryPoint::FunctionHandlerAsync"
+  DEFAULT_API_GATEWAY_TYPE: "REST"
+
+  # PROJECT ENVIRONMENT VARIABLES
+  DEFAULT_PROJECT_ENV: >-
+    SMTP_0_PASSWORD=${{ secrets.SMTP_0_PASSWORD }};
+    SMTP_1_PASSWORD=${{ secrets.SMTP_1_PASSWORD }}
+
+  # APPLICATION SETTINGS
+  DEFAULT_ASPNETCORE_ENVIRONMENT: "Production"
+  DEFAULT_LAMBDA_DEBUG: "true"
+
+  # AWS DEPLOYMENT CONFIGURATION - ADJUST THESE FOR PERFORMANCE/COST BALANCE
+  DEFAULT_REGION: "us-east-1"
+  DEFAULT_DOTNET_VERSION: "8.0.x"
+  DEFAULT_MEMORY: "512" # MEMORY IN MB
+  DEFAULT_TIMEOUT: "30" # TIMEOUT IN SECONDS
+  DEFAULT_THROTTLE_RATE: "10" # REQUESTS PER SECOND
+  DEFAULT_THROTTLE_BURST: "20" # MAX CONCURRENT REQUESTS
+  DEFAULT_QUOTA_LIMIT: "1000" # MAX REQUESTS PER PERIOD
+  DEFAULT_QUOTA_PERIOD: "DAY" # QUOTA PERIOD (DAY, WEEK, MONTH)
+
+  # DOTNET BUILD SETTINGS - TYPICALLY NO NEED TO MODIFY
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+run-name: "Deploy to AWS Lambda"
+permissions:
+  id-token: write
+  contents: read
+  packages: read
+
+jobs:
+  create-github-role:
+    name: Create GitHub OIDC role
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      role_arn: ${{ steps.create-oidc-role.outputs.role_arn }}
+      role_exists: ${{ steps.check-role-exists.outputs.exists }}
+
+    steps:
+      - name: Set variables
+        run: |
+          # SET VARIABLES DIRECTLY FROM DEFAULTS
+          echo "FUNCTION_NAME=$DEFAULT_FUNCTION_NAME" >> $GITHUB_ENV
+          echo "RESOURCE_PREFIX=$DEFAULT_RESOURCE_PREFIX" >> $GITHUB_ENV
+          echo "AWS_REGION=$DEFAULT_REGION" >> $GITHUB_ENV
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials with access key
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION || 'us-east-1' }}
+
+      - name: Check if GitHub OIDC role already exists
+        id: check-role-exists
+        run: |
+          echo "TESTING AWS CREDENTIALS..."
+          # GET ACCOUNT ID WITHOUT DISPLAYING IT
+          ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+          echo "::add-mask::$ACCOUNT_ID"
+          echo "ACCOUNT_ID=$ACCOUNT_ID" >> $GITHUB_ENV
+
+          ROLE_NAME="${{ env.RESOURCE_PREFIX }}github-actions-role"
+          ROLE_ARN=$(aws iam get-role --role-name "$ROLE_NAME" --query 'Role.Arn' --output text 2>/dev/null || echo "")
+          echo "::add-mask::$ROLE_ARN"
+
+          if [ -n "$ROLE_ARN" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "role_arn=$ROLE_ARN" >> $GITHUB_OUTPUT
+            echo "::notice::GITHUB OIDC ROLE ALREADY EXISTS. REUSING EXISTING ROLE."
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Actions role
+        id: create-oidc-role
+        if: steps.check-role-exists.outputs.exists != 'true'
+        run: |
+          # CREATE TRUST POLICY
+          echo '{
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": {
+                  "Federated": "PROVIDER_ARN_PLACEHOLDER"
+                },
+                "Action": "sts:AssumeRoleWithWebIdentity",
+                "Condition": {
+                  "StringLike": {
+                    "token.actions.githubusercontent.com:sub": "repo:${{ github.repository }}:*"
+                  }
+                }
+              }
+            ]
+          }' > trust-policy-template.json
+
+          # CREATE POLICY
+          echo '{
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "iam:CreateRole",
+                  "iam:GetRole",
+                  "iam:PutRolePolicy",
+                  "iam:AttachRolePolicy",
+                  "iam:ListRolePolicies",
+                  "iam:ListAttachedRolePolicies"
+                ],
+                "Resource": [
+                  "arn:aws:iam::${{ env.ACCOUNT_ID }}:role/${{ env.RESOURCE_PREFIX }}*"
+                ]
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "lambda:CreateFunction",
+                  "lambda:GetFunction",
+                  "lambda:UpdateFunctionCode",
+                  "lambda:UpdateFunctionConfiguration",
+                  "lambda:AddPermission",
+                  "lambda:DeleteFunction"
+                ],
+                "Resource": "arn:aws:lambda:${{ env.AWS_REGION }}:${{ env.ACCOUNT_ID }}:function:${{ env.FUNCTION_NAME }}"
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "apigateway:GET",
+                  "apigateway:POST",
+                  "apigateway:PUT",
+                  "apigateway:DELETE"
+                ],
+                "Resource": [
+                  "arn:aws:apigateway:${{ env.AWS_REGION }}::/restapis",
+                  "arn:aws:apigateway:${{ env.AWS_REGION }}::/restapis/*"
+                ]
+              }
+            ]
+          }' > policy.json
+
+          # GET PROVIDER ARN WITHOUT DISPLAYING IT
+          PROVIDER_ARN=$(aws iam list-open-id-connect-providers --query 'OpenIDConnectProviderList[?contains(Arn, `token.actions.githubusercontent.com`)].Arn' --output text)
+          echo "::add-mask::$PROVIDER_ARN"
+
+          if [ -z "$PROVIDER_ARN" ]; then
+            echo "CREATING GITHUB OIDC PROVIDER..."
+            THUMBPRINT=$(curl -s https://token.actions.githubusercontent.com/.well-known/openid-configuration | jq -r '.jwks_uri' | xargs curl -s | jq -r '.keys[0].x5c[0]' | base64 -d | openssl x509 -noout -fingerprint -sha1 | cut -d'=' -f2 | tr -d ':')
+            PROVIDER_ARN=$(aws iam create-open-id-connect-provider --url "https://token.actions.githubusercontent.com" --client-id-list "sts.amazonaws.com" --thumbprint-list "$THUMBPRINT" --query 'OpenIDConnectProviderArn' --output text)
+            echo "::add-mask::$PROVIDER_ARN"
+          fi
+
+          ROLE_NAME="${{ env.RESOURCE_PREFIX }}github-actions-role"
+
+          # DON'T DISPLAY PROVIDER ARN
+          jq -n \
+            --arg provider "$PROVIDER_ARN" \
+            --arg repo "${{ github.repository }}" \
+            '{
+              Version: "2012-10-17",
+              Statement: [{
+                Effect: "Allow",
+                Principal: {
+                  Federated: $provider
+                },
+                Action: "sts:AssumeRoleWithWebIdentity",
+                Condition: {
+                  StringLike: {
+                    "token.actions.githubusercontent.com:sub": ("repo:" + $repo + ":*")
+                  }
+                }
+              }]
+            }' > trust-policy.json
+            
+          ROLE_ARN=$(aws iam create-role --role-name "$ROLE_NAME" --assume-role-policy-document file://trust-policy.json --query 'Role.Arn' --output text)
+          echo "::add-mask::$ROLE_ARN"
+            
+          aws iam put-role-policy --role-name "$ROLE_NAME" --policy-name "${RESOURCE_PREFIX}github-actions-policy" --policy-document file://policy.json
+          echo "WAITING FOR ROLE PROPAGATION..."
+          sleep 10
+
+          echo "role_arn=$ROLE_ARN" >> $GITHUB_OUTPUT
+
+  test:
+    needs: create-github-role
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ github.event.inputs.run_tests == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json', '**/packages.config') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: |
+          cd ${{ env.TESTS_PATH }}
+          dotnet restore
+
+      - name: Run tests
+        run: |
+          cd ${{ env.TESTS_PATH }}
+          dotnet test --no-restore --verbosity normal --collect:"XPlat Code Coverage" --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: ${{ env.TESTS_PATH }}/TestResults
+          retention-days: 30
+
+  build:
+    needs: [create-github-role, test]
+    if: |
+      !failure() && !cancelled() && 
+      (needs.test.result == 'success' || needs.test.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      package_path: ${{ steps.package.outputs.package_path }}
+
+    steps:
+      - name: Check skipped jobs status
+        run: |
+          if [[ "${{ needs.test.result }}" == "skipped" ]]; then
+            echo "::notice::TEST JOB WAS SKIPPED BECAUSE RUN_TESTS IS SET TO FALSE."
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Set remaining variables
+        run: |
+          echo "PROJECT_PATH=$DEFAULT_PROJECT_PATH" >> $GITHUB_ENV
+          echo "TESTS_PATH=$DEFAULT_TESTS_PATH" >> $GITHUB_ENV
+          echo "LAMBDA_HANDLER=$DEFAULT_LAMBDA_HANDLER" >> $GITHUB_ENV
+
+          # ENVIRONMENT VARIABLES JSON
+          echo "ASPNETCORE_ENVIRONMENT=$DEFAULT_ASPNETCORE_ENVIRONMENT" >> $GITHUB_ENV
+          echo "LAMBDA_DEBUG=$DEFAULT_LAMBDA_DEBUG" >> $GITHUB_ENV
+
+          # BOOLEAN FLAGS
+          echo "RUN_TESTS=${{ github.event.inputs.run_tests }}" >> $GITHUB_ENV
+          echo "ENABLE_CORS=true" >> $GITHUB_ENV
+
+          # SET Lambda config values
+          echo "DOTNET_VERSION=$DEFAULT_DOTNET_VERSION" >> $GITHUB_ENV
+          echo "LAMBDA_MEMORY=$DEFAULT_MEMORY" >> $GITHUB_ENV
+          echo "LAMBDA_TIMEOUT=$DEFAULT_TIMEOUT" >> $GITHUB_ENV
+
+          # SET API Gateway config values
+          echo "API_THROTTLE_RATE=$DEFAULT_THROTTLE_RATE" >> $GITHUB_ENV
+          echo "API_THROTTLE_BURST=$DEFAULT_THROTTLE_BURST" >> $GITHUB_ENV
+          echo "API_QUOTA_LIMIT=$DEFAULT_QUOTA_LIMIT" >> $GITHUB_ENV
+          echo "API_QUOTA_PERIOD=$DEFAULT_QUOTA_PERIOD" >> $GITHUB_ENV
+          echo "API_GATEWAY_TYPE=$DEFAULT_API_GATEWAY_TYPE" >> $GITHUB_ENV
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Debug Environment Variables
+        run: |
+          echo "ENVIRONMENT VARIABLES:"
+          echo "PROJECT_PATH=${{ env.PROJECT_PATH }}"
+          echo "DOTNET_VERSION=${{ env.DOTNET_VERSION }}"
+          ls -la
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json', '**/packages.config') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Install Amazon.Lambda.Tools
+        run: dotnet tool install -g Amazon.Lambda.Tools
+
+      - name: Build and Package
+        id: package
+        run: |
+          PROJECT_DIR="${PROJECT_PATH:-$DEFAULT_PROJECT_PATH}"
+          echo "USING PROJECT DIRECTORY: $PROJECT_DIR"
+
+          cd $PROJECT_DIR
+          dotnet restore
+          dotnet build -c Release --no-restore
+          dotnet publish -c Release -o ./publish --no-restore
+          dotnet lambda package --configuration Release --framework net8.0 --output-package bin/Release/net8.0/lambda-package.zip
+          echo "package_path=bin/Release/net8.0/lambda-package.zip" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-package
+          path: ${{ env.PROJECT_PATH }}/bin/Release/net8.0/lambda-package.zip
+
+  create-iam-roles:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ !failure() && !cancelled() }}
+    outputs:
+      lambda_role_arn: ${{ steps.create-lambda-role.outputs.role_arn }}
+      role_exists: ${{ steps.check-lambda-role-exists.outputs.exists }}
+
+    steps:
+      - name: Set variables
+        run: |
+          # SET variables directly from defaults
+          echo "FUNCTION_NAME=$DEFAULT_FUNCTION_NAME" >> $GITHUB_ENV
+          echo "RESOURCE_PREFIX=$DEFAULT_RESOURCE_PREFIX" >> $GITHUB_ENV
+          echo "AWS_REGION=$DEFAULT_REGION" >> $GITHUB_ENV
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION || 'us-east-1' }}
+
+      - name: Check if Lambda role already exists
+        id: check-lambda-role-exists
+        run: |
+          # GET AWS ACCOUNT ID
+          ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+          echo "::add-mask::$ACCOUNT_ID"
+          echo "ACCOUNT_ID=$ACCOUNT_ID" >> $GITHUB_ENV
+
+          # CHECK IF LAMBDA ROLE EXISTS
+          ROLE_NAME="${{ env.RESOURCE_PREFIX }}lambda-exec-role"
+          ROLE_ARN=$(aws iam get-role --role-name "$ROLE_NAME" --query 'Role.Arn' --output text 2>/dev/null || echo "")
+          echo "::add-mask::$ROLE_ARN"
+
+          if [ -n "$ROLE_ARN" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "role_arn=$ROLE_ARN" >> $GITHUB_OUTPUT
+            echo "::notice::LAMBDA EXECUTION ROLE ALREADY EXISTS. REUSING EXISTING ROLE."
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Lambda execution role
+        id: create-lambda-role
+        if: steps.check-lambda-role-exists.outputs.exists != 'true'
+        run: |
+          ROLE_NAME="${{ env.RESOURCE_PREFIX }}lambda-exec-role"
+          echo "CREATING LAMBDA EXECUTION ROLE..."
+          echo '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}' > trust-policy.json
+          ROLE_ARN=$(aws iam create-role --role-name "$ROLE_NAME" --assume-role-policy-document file://trust-policy.json --query 'Role.Arn' --output text)
+          echo "::add-mask::$ROLE_ARN"
+          aws iam attach-role-policy --role-name "$ROLE_NAME" --policy-arn "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole" > /dev/null
+
+          # LEAST PRIVILEGED POLICY (SPECIFIC ARNS)
+          echo '{
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "logs:CreateLogGroup",
+                  "logs:CreateLogStream",
+                  "logs:PutLogEvents"
+                ],
+                "Resource": [
+                  "arn:aws:logs:${{ env.AWS_REGION }}:${{ env.ACCOUNT_ID }}:log-group:/aws/lambda/${{ env.FUNCTION_NAME }}:*"
+                ]
+              }
+            ]
+          }' > lambda-policy.json
+
+          aws iam put-role-policy --role-name "$ROLE_NAME" --policy-name "${{ env.RESOURCE_PREFIX }}lambda-policy" --policy-document file://lambda-policy.json > /dev/null
+          echo "WAITING FOR ROLE PROPAGATION..."
+          sleep 10
+
+          # STORE ROLE ARN IN OUTPUT WITHOUT DISPLAYING IT
+          echo "role_arn=$ROLE_ARN" >> $GITHUB_OUTPUT
+
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [build, create-iam-roles]
+    if: ${{ !failure() && !cancelled() }}
+    env:
+      LAMBDA_PACKAGE_PATH: lambda-package.zip
+
+    steps:
+      - name: Set variables
+        run: |
+          # SET variables directly from defaults
+          echo "FUNCTION_NAME=$DEFAULT_FUNCTION_NAME" >> $GITHUB_ENV
+          echo "RESOURCE_PREFIX=$DEFAULT_RESOURCE_PREFIX" >> $GITHUB_ENV
+          echo "PROJECT_PATH=$DEFAULT_PROJECT_PATH" >> $GITHUB_ENV
+          echo "TESTS_PATH=$DEFAULT_TESTS_PATH" >> $GITHUB_ENV
+          echo "LAMBDA_HANDLER=$DEFAULT_LAMBDA_HANDLER" >> $GITHUB_ENV
+
+          # APPLICATION ENVIRONMENT VARIABLES
+          echo "ASPNETCORE_ENVIRONMENT=$DEFAULT_ASPNETCORE_ENVIRONMENT" >> $GITHUB_ENV
+          echo "LAMBDA_DEBUG=$DEFAULT_LAMBDA_DEBUG" >> $GITHUB_ENV
+
+          # BOOLEAN flags
+          echo "RUN_TESTS=${{ github.event.inputs.run_tests }}" >> $GITHUB_ENV
+          echo "ENABLE_CORS=true" >> $GITHUB_ENV
+
+          # SET CONFIG VALUES
+          echo "AWS_REGION=$DEFAULT_REGION" >> $GITHUB_ENV
+          echo "DOTNET_VERSION=$DEFAULT_DOTNET_VERSION" >> $GITHUB_ENV
+          echo "LAMBDA_MEMORY=$DEFAULT_MEMORY" >> $GITHUB_ENV
+          echo "LAMBDA_TIMEOUT=$DEFAULT_TIMEOUT" >> $GITHUB_ENV
+
+          # SET API GATEWAY CONFIG VALUES
+          echo "API_THROTTLE_RATE=$DEFAULT_THROTTLE_RATE" >> $GITHUB_ENV
+          echo "API_THROTTLE_BURST=$DEFAULT_THROTTLE_BURST" >> $GITHUB_ENV
+          echo "API_QUOTA_LIMIT=$DEFAULT_QUOTA_LIMIT" >> $GITHUB_ENV
+          echo "API_QUOTA_PERIOD=$DEFAULT_QUOTA_PERIOD" >> $GITHUB_ENV
+          echo "API_GATEWAY_TYPE=$DEFAULT_API_GATEWAY_TYPE" >> $GITHUB_ENV
+
+      - name: Debug Info
+        run: |
+          echo "JOB DEPLOY IS RUNNING!"
+          echo "AWS_REGION=${{ env.AWS_REGION }}"
+          echo "AWS_ACCESS_KEY_ID EXISTS: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}"
+          echo "AWS_SECRET_ACCESS_KEY EXISTS: ${{ secrets.AWS_SECRET_ACCESS_KEY != '' }}"
+
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION || 'us-east-1' }}
+
+      - name: Get Lambda Execution Role
+        run: |
+          ROLE_ARN="${{ needs.create-iam-roles.outputs.lambda_role_arn }}"
+          if [ -z "$ROLE_ARN" ]; then
+            echo "ROLE ARN WAS NOT CORRECTLY PASSED FROM THE CREATE-IAM-ROLES JOB, GETTING IT DIRECTLY..."
+            ROLE_NAME="${{ env.RESOURCE_PREFIX }}lambda-exec-role"
+            ROLE_ARN=$(aws iam get-role --role-name "$ROLE_NAME" --query 'Role.Arn' --output text)
+            if [[ "${{ needs.create-iam-roles.result }}" == "skipped" ]]; then
+              echo "::notice::IAM ROLES JOB WAS SKIPPED BECAUSE LAMBDA EXECUTION ROLE ALREADY EXISTS AND IS BEING REUSED."
+            fi
+          fi
+          echo "::add-mask::$ROLE_ARN"
+          echo "LAMBDA_ROLE_ARN=$ROLE_ARN" >> $GITHUB_ENV
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Get AWS Account ID
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+          echo "::add-mask::$ACCOUNT_ID"
+          echo "ACCOUNT_ID=$ACCOUNT_ID" >> $GITHUB_ENV
+
+      - name: Install Amazon.Lambda.Tools
+        run: dotnet tool install -g Amazon.Lambda.Tools
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: lambda-package
+          path: ${{ env.PROJECT_PATH }}/
+
+      - name: Verify package exists
+        run: |
+          if [ ! -f "$PROJECT_PATH/${{ env.LAMBDA_PACKAGE_PATH }}" ]; then
+            echo "PACKAGE NOT FOUND AT $PROJECT_PATH/${{ env.LAMBDA_PACKAGE_PATH }}"
+            ls -la $PROJECT_PATH/
+            exit 1
+          fi
+
+      - name: Deploy Lambda function
+        run: |
+          cd ${{ env.PROJECT_PATH }}
+
+          # DEPLOYING WITH THE RETRIEVED ROLE ARN
+          echo "DEPLOYING WITH AWS CREDENTIALS..."
+          dotnet lambda deploy-function ${{ env.FUNCTION_NAME }} \
+            --region ${{ env.AWS_REGION }} \
+            --function-role "${{ env.LAMBDA_ROLE_ARN }}" \
+            --function-handler ${{ env.LAMBDA_HANDLER }} \
+            --package ${{ env.LAMBDA_PACKAGE_PATH }} \
+            --function-memory-size ${{ env.LAMBDA_MEMORY }} \
+            --function-timeout ${{ env.LAMBDA_TIMEOUT }} \
+            --function-runtime dotnet8 \
+            --function-url ${{ env.FUNCTION_URL }} \
+            --function-role ${{ env.LAMBDA_ROLE_ARN }} \
+            --function-environment-variables "ASPNETCORE_ENVIRONMENT=${{ env.ASPNETCORE_ENVIRONMENT }};LAMBDA_DEBUG=${{ env.LAMBDA_DEBUG }};${{ env.DEFAULT_PROJECT_ENV }}" \
+            ${{ env.PROJECT_PATH }}
+
+      - name: Ensure environment variables are set with AWS CLI
+        run: |
+          echo "WAITING FOR LAMBDA FUNCTION TO BECOME ACTIVE..."
+          # WAIT FOR FUNCTION TO BECOME ACTIVE
+          MAX_WAIT=60
+          WAIT_TIME=0
+          DELAY=5
+
+          while [ $WAIT_TIME -lt $MAX_WAIT ]; do
+            FUNCTION_STATE=$(aws lambda get-function --function-name ${{ env.FUNCTION_NAME }} --query 'Configuration.State' --output text 2>/dev/null || echo "")
+            echo "Current function state: $FUNCTION_STATE"
+            
+            if [ "$FUNCTION_STATE" = "Active" ]; then
+              echo "LAMBDA FUNCTION IS ACTIVE, PROCEEDING WITH ENVIRONMENT VARIABLE UPDATE..."
+              break
+            fi
+            
+            echo "WAITING FOR FUNCTION TO BECOME ACTIVE, WAITED ${WAIT_TIME}s SO FAR..."
+            sleep $DELAY
+            WAIT_TIME=$((WAIT_TIME + DELAY))
+          done
+
+          if [ $WAIT_TIME -ge $MAX_WAIT ]; then
+            echo "WARNING: TIMED OUT WAITING FOR FUNCTION TO BECOME ACTIVE, ATTEMPTING UPDATE ANYWAY..."
+          fi
+
+          echo "SETTING ENVIRONMENT VARIABLES DIRECTLY WITH AWS CLI..."
+          # Parse DEFAULT_PROJECT_ENV into variables
+          # Create base ENV_VARS with non-DEFAULT_PROJECT_ENV variables
+          ENV_VARS_JSON='{
+            "Variables": {
+              "ASPNETCORE_ENVIRONMENT": "'$ASPNETCORE_ENVIRONMENT'",
+              "LAMBDA_DEBUG": "'$LAMBDA_DEBUG'"
+            }
+          }'
+
+          # PARSE SMTP VARIABLES FROM DEFAULT_PROJECT_ENV
+          IFS=';' read -ra ENV_VARS_ARRAY <<< "${{ env.DEFAULT_PROJECT_ENV }}"
+          for VAR in "${ENV_VARS_ARRAY[@]}"; do
+            if [ -n "$VAR" ]; then
+              VAR=$(echo "$VAR" | xargs) # Trim whitespace
+              if [ -n "$VAR" ]; then
+                KEY=$(echo "$VAR" | cut -d'=' -f1)
+                VALUE=$(echo "$VAR" | cut -d'=' -f2-)
+                
+                # ADD TO THE JSON USING JQ
+                ENV_VARS_JSON=$(echo "$ENV_VARS_JSON" | jq --arg key "$KEY" --arg value "$VALUE" '.Variables[$key] = $value')
+              fi
+            fi
+          done
+
+          # CONVERT TO PROPER FORMAT FOR AWS CLI
+          ENV_VARS=$(echo "$ENV_VARS_JSON")
+
+          # UPDATE THE FUNCTION CONFIGURATION WITH THE ENVIRONMENT VARIABLES
+          MAX_RETRIES=5
+          RETRY=0
+          RETRY_DELAY=10
+
+          while [ $RETRY -lt $MAX_RETRIES ]; do
+            if aws lambda update-function-configuration \
+              --function-name ${{ env.FUNCTION_NAME }} \
+              --environment "$ENV_VARS" \
+              --region ${{ env.AWS_REGION }}; then
+              echo "SUCCESSFULLY UPDATED ENVIRONMENT VARIABLES"
+              break
+            else
+              RETRY=$((RETRY + 1))
+              if [ $RETRY -ge $MAX_RETRIES ]; then
+                echo "FAILED TO UPDATE ENVIRONMENT VARIABLES AFTER MAXIMUM RETRIES"
+                echo "PLEASE CHECK LAMBDA FUNCTION CONFIGURATION MANUALLY"
+                exit 1
+              fi
+              echo "UPDATE FAILED, RETRYING IN ${RETRY_DELAY}s (ATTEMPT $RETRY OF $MAX_RETRIES)..."
+              sleep $RETRY_DELAY
+            fi
+          done
+
+          echo "VERIFYING ENVIRONMENT VARIABLES..."
+          aws lambda get-function-configuration \
+            --function-name ${{ env.FUNCTION_NAME }} \
+            --region ${{ env.AWS_REGION }} \
+            --query "Environment.Variables.ASPNETCORE_ENVIRONMENT" \
+            --output text
+            
+          echo "ENVIRONMENT VARIABLES CONFIGURATION COMPLETED."
+
+      - name: Set API Gateway variables
+        run: |
+          # API GATEWAY ID/name variables
+          echo "API_NAME=${{ env.RESOURCE_PREFIX }}api" >> $GITHUB_ENV
+          echo "API_DESCRIPTION=API for ${{ env.FUNCTION_NAME }}" >> $GITHUB_ENV
+
+          # USAGE PLAN VARIABLES
+          echo "USAGE_PLAN_NAME=${{ env.RESOURCE_PREFIX }}usage-plan" >> $GITHUB_ENV
+          echo "USAGE_PLAN_DESCRIPTION=Usage plan for ${{ env.FUNCTION_NAME }}" >> $GITHUB_ENV
+
+          # API KEY VARIABLES
+          echo "API_KEY_NAME=${{ env.RESOURCE_PREFIX }}api-key" >> $GITHUB_ENV
+          echo "API_KEY_DESCRIPTION=API key for ${{ env.FUNCTION_NAME }}" >> $GITHUB_ENV
+
+      - name: Check if API Gateway exists
+        id: check-api-exists
+        run: |
+          # CHECK IF API ALREADY EXISTS BY LISTING ALL APIS AND FILTERING BY NAME
+          API_ID=$(aws apigateway get-rest-apis --query "items[?name=='${{ env.API_NAME }}'].id" --output text)
+
+          if [ -n "$API_ID" ]; then
+            echo "API_ID=$API_ID" >> $GITHUB_ENV
+            echo "::notice::REUSING EXISTING API GATEWAY WITH ID: $API_ID"
+            echo "api_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "api_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create API Gateway
+        if: steps.check-api-exists.outputs.api_exists != 'true'
+        run: |
+          echo "CREATING NEW API GATEWAY..."
+          API_RESULT=$(aws apigateway create-rest-api \
+            --name "${{ env.API_NAME }}" \
+            --description "${{ env.API_DESCRIPTION }}" \
+            --endpoint-configuration "types=REGIONAL")
+
+          API_ID=$(echo $API_RESULT | jq -r '.id')
+          echo "API_ID=$API_ID" >> $GITHUB_ENV
+          echo "::notice::CREATED NEW API GATEWAY WITH ID: $API_ID"
+
+      - name: Configure API Gateway
+        run: |
+          # GET ROOT RESOURCE ID
+          echo "Getting API Gateway root resource ID"
+          ROOT_RESOURCE_ID=$(aws apigateway get-resources \
+            --rest-api-id $API_ID \
+            --query 'items[?path==`/`].id' \
+            --output text)
+          echo "Root resource ID: $ROOT_RESOURCE_ID"
+
+          # CHECK IF PROXY RESOURCE EXISTS
+          echo "Checking if proxy resource exists"
+          PROXY_RESOURCE_ID=$(aws apigateway get-resources \
+            --rest-api-id $API_ID \
+            --query 'items[?path==`/{proxy+}`].id' \
+            --output text)
+
+          # CREATE PROXY RESOURCE IF IT DOESN'T EXIST
+          if [ -z "$PROXY_RESOURCE_ID" ] || [ "$PROXY_RESOURCE_ID" = "None" ]; then
+            echo "Creating proxy resource"
+            PROXY_RESOURCE_RESULT=$(aws apigateway create-resource \
+              --rest-api-id $API_ID \
+              --parent-id $ROOT_RESOURCE_ID \
+              --path-part "{proxy+}")
+            PROXY_RESOURCE_ID=$(echo $PROXY_RESOURCE_RESULT | jq -r '.id')
+            echo "Created proxy resource with ID: $PROXY_RESOURCE_ID"
+          else
+            echo "Proxy resource already exists with ID: $PROXY_RESOURCE_ID"
+          fi
+
+          # CHECK IF ANY METHOD EXISTS FOR PROXY RESOURCE
+          echo "Checking if ANY method exists for proxy resource"
+          PROXY_ANY_METHOD=$(aws apigateway get-method \
+            --rest-api-id $API_ID \
+            --resource-id $PROXY_RESOURCE_ID \
+            --http-method ANY 2>/dev/null || echo "")
+
+          # CREATE ANY METHOD FOR PROXY RESOURCE IF IT DOESN'T EXIST
+          if [ -z "$PROXY_ANY_METHOD" ]; then
+            echo "Creating ANY method for proxy resource"
+            aws apigateway put-method \
+              --rest-api-id $API_ID \
+              --resource-id $PROXY_RESOURCE_ID \
+              --http-method ANY \
+              --authorization-type NONE
+          else
+            echo "ANY method for proxy resource already exists"
+          fi
+
+          # CHECK IF INTEGRATION EXISTS FOR PROXY RESOURCE
+          echo "Checking if integration exists for proxy resource"
+          PROXY_INTEGRATION=$(aws apigateway get-integration \
+            --rest-api-id $API_ID \
+            --resource-id $PROXY_RESOURCE_ID \
+            --http-method ANY 2>/dev/null || echo "")
+
+          # CREATE INTEGRATION FOR PROXY RESOURCE IF IT DOESN'T EXIST
+          if [ -z "$PROXY_INTEGRATION" ]; then
+            echo "Creating integration for proxy resource"
+            aws apigateway put-integration \
+              --rest-api-id $API_ID \
+              --resource-id $PROXY_RESOURCE_ID \
+              --http-method ANY \
+              --type AWS_PROXY \
+              --integration-http-method POST \
+              --uri arn:aws:apigateway:${{ env.AWS_REGION }}:lambda:path/2015-03-31/functions/arn:aws:lambda:${{ env.AWS_REGION }}:${{ env.ACCOUNT_ID }}:function:${{ env.FUNCTION_NAME }}/invocations
+          else
+            echo "Integration for proxy resource already exists"
+          fi
+
+          # CHECK IF ANY METHOD EXISTS FOR ROOT RESOURCE
+          echo "Checking if ANY method exists for root resource"
+          ROOT_ANY_METHOD=$(aws apigateway get-method \
+            --rest-api-id $API_ID \
+            --resource-id $ROOT_RESOURCE_ID \
+            --http-method ANY 2>/dev/null || echo "")
+
+          # CREATE ANY METHOD FOR ROOT RESOURCE IF IT DOESN'T EXIST
+          if [ -z "$ROOT_ANY_METHOD" ]; then
+            echo "Creating ANY method for root resource"
+            aws apigateway put-method \
+              --rest-api-id $API_ID \
+              --resource-id $ROOT_RESOURCE_ID \
+              --http-method ANY \
+              --authorization-type NONE
+          else
+            echo "ANY method for root resource already exists"
+          fi
+
+          # CHECK IF INTEGRATION EXISTS FOR ROOT RESOURCE
+          echo "Checking if integration exists for root resource"
+          ROOT_INTEGRATION=$(aws apigateway get-integration \
+            --rest-api-id $API_ID \
+            --resource-id $ROOT_RESOURCE_ID \
+            --http-method ANY 2>/dev/null || echo "")
+
+          # CREATE INTEGRATION FOR ROOT RESOURCE IF IT DOESN'T EXIST
+          if [ -z "$ROOT_INTEGRATION" ]; then
+            echo "Creating integration for root resource"
+            aws apigateway put-integration \
+              --rest-api-id $API_ID \
+              --resource-id $ROOT_RESOURCE_ID \
+              --http-method ANY \
+              --type AWS_PROXY \
+              --integration-http-method POST \
+              --uri arn:aws:apigateway:${{ env.AWS_REGION }}:lambda:path/2015-03-31/functions/arn:aws:lambda:${{ env.AWS_REGION }}:${{ env.ACCOUNT_ID }}:function:${{ env.FUNCTION_NAME }}/invocations
+          else
+            echo "Integration for root resource already exists"
+          fi
+
+      - name: Configure Lambda Permissions
+        run: |
+          # ADD LAMBDA PERMISSION FOR API GATEWAY
+          echo "Checking for existing Lambda permission"
+          STATEMENT_ID="${{ env.RESOURCE_PREFIX }}api-gateway-permission"
+
+          # ALWAYS CHECK FOR EXISTING PERMISSION THROUGH THE ERROR MESSAGE
+          # THIS IS MORE RELIABLE THAN CHECKING THE POLICY
+          ADD_PERMISSION_RESULT=$(aws lambda add-permission \
+            --function-name ${{ env.FUNCTION_NAME }} \
+            --statement-id "$STATEMENT_ID" \
+            --action lambda:InvokeFunction \
+            --principal apigateway.amazonaws.com \
+            --source-arn "arn:aws:execute-api:${{ env.AWS_REGION }}:${{ env.ACCOUNT_ID }}:$API_ID/*/*" 2>&1 || true)
+            
+          # Check if the error indicates the permission already exists
+          if echo "$ADD_PERMISSION_RESULT" | grep -q "ResourceConflictException"; then
+            echo "Lambda permission already exists with statement ID $STATEMENT_ID"
+          elif echo "$ADD_PERMISSION_RESULT" | grep -q "Statement"; then
+            echo "Lambda permission successfully added with statement ID $STATEMENT_ID"
+          else
+            echo "Unexpected error when adding Lambda permission: $ADD_PERMISSION_RESULT"
+            exit 1
+          fi
+
+      - name: Deploy API
+        run: |
+          # CREATE DEPLOYMENT
+          DEPLOYMENT_RESULT=$(aws apigateway create-deployment \
+            --rest-api-id $API_ID \
+            --stage-name prod \
+            --description "Deployed from GitHub Actions")
+
+          # CONFIGURE CORS IF ENABLED
+          if [[ "${{ env.ENABLE_CORS }}" == "true" ]]; then
+            echo "CONFIGURING CORS FOR API GATEWAY..."
+            
+            # GET ALL RESOURCES
+            RESOURCES=$(aws apigateway get-resources \
+              --rest-api-id $API_ID \
+              --query 'items[].id' \
+              --output text)
+            
+            for RESOURCE_ID in $RESOURCES; do
+              # ADD OPTIONS METHOD
+              aws apigateway put-method \
+                --rest-api-id $API_ID \
+                --resource-id $RESOURCE_ID \
+                --http-method OPTIONS \
+                --authorization-type NONE 2>/dev/null || echo "Method likely exists"
+              
+              # CONFIGURE OPTIONS RESPONSE
+              aws apigateway put-method-response \
+                --rest-api-id $API_ID \
+                --resource-id $RESOURCE_ID \
+                --http-method OPTIONS \
+                --status-code 200 \
+                --response-models '{"application/json":"Empty"}' \
+                --response-parameters '{
+                  "method.response.header.Access-Control-Allow-Headers":true,
+                  "method.response.header.Access-Control-Allow-Methods":true,
+                  "method.response.header.Access-Control-Allow-Origin":true
+                }' 2>/dev/null || echo "Method response likely exists"
+              
+              # CONFIGURE OPTIONS MOCK INTEGRATION
+              aws apigateway put-integration \
+                --rest-api-id $API_ID \
+                --resource-id $RESOURCE_ID \
+                --http-method OPTIONS \
+                --type MOCK \
+                --integration-http-method OPTIONS \
+                --request-templates '{"application/json":"{\"statusCode\": 200}"}' 2>/dev/null || echo "Integration likely exists"
+              
+              # CONFIGURE INTEGRATION RESPONSE
+              aws apigateway put-integration-response \
+                --rest-api-id $API_ID \
+                --resource-id $RESOURCE_ID \
+                --http-method OPTIONS \
+                --status-code 200 \
+                --response-parameters '{
+                  "method.response.header.Access-Control-Allow-Headers":"'"'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"'",
+                  "method.response.header.Access-Control-Allow-Methods":"'"'GET,POST,PUT,DELETE,OPTIONS,PATCH'"'",
+                  "method.response.header.Access-Control-Allow-Origin":"'"'*'"'"
+                }' \
+                --response-templates '{"application/json":""}' 2>/dev/null || echo "Integration response likely exists"
+            done
+          fi
+
+      - name: Check if Usage Plan exists
+        id: check-usage-plan
+        run: |
+          # CHECK IF USAGE PLAN EXISTS
+          EXISTING_USAGE_PLANS=$(aws apigateway get-usage-plans --query "items[?name=='${{ env.USAGE_PLAN_NAME }}'].id" --output text)
+
+          if [ -n "$EXISTING_USAGE_PLANS" ]; then
+            echo "USAGE_PLAN_ID=$EXISTING_USAGE_PLANS" >> $GITHUB_ENV
+            echo "usage_plan_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "usage_plan_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Usage Plan
+        if: steps.check-usage-plan.outputs.usage_plan_exists != 'true'
+        run: |
+          # CREATE USAGE PLAN
+          USAGE_PLAN_RESULT=$(aws apigateway create-usage-plan \
+            --name "${{ env.USAGE_PLAN_NAME }}" \
+            --description "${{ env.USAGE_PLAN_DESCRIPTION }}" \
+            --throttle "rateLimit=${{ env.API_THROTTLE_RATE }},burstLimit=${{ env.API_THROTTLE_BURST }}" \
+            --quota "limit=${{ env.API_QUOTA_LIMIT }},period=${{ env.API_QUOTA_PERIOD }}" \
+            --api-stages "apiId=$API_ID,stage=prod")
+
+          USAGE_PLAN_ID=$(echo $USAGE_PLAN_RESULT | jq -r '.id')
+          echo "USAGE_PLAN_ID=$USAGE_PLAN_ID" >> $GITHUB_ENV
+
+      - name: Check if API Key exists
+        id: check-api-key
+        run: |
+          # CHECK IF API KEY EXISTS
+          EXISTING_API_KEY_ID=$(aws apigateway get-api-keys --name-query "${{ env.API_KEY_NAME }}" --include-values --query "items[0].id" --output text)
+
+          if [ "$EXISTING_API_KEY_ID" != "None" ] && [ -n "$EXISTING_API_KEY_ID" ]; then
+            echo "API_KEY=$EXISTING_API_KEY_ID" >> $GITHUB_ENV
+            echo "api_key_exists=true" >> $GITHUB_OUTPUT
+            echo "EXISTING_API_KEY_ID=$EXISTING_API_KEY_ID" >> $GITHUB_ENV
+          else
+            echo "api_key_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create API Key
+        if: steps.check-api-key.outputs.api_key_exists != 'true'
+        run: |
+          # ENSURE ALL OUTPUT IS CORRECTLY MASKED
+          # FIRST ADD MASKING FOR THE OUTPUT
+          # THIS IS USED TO PRE-MASK OUTPUTS BEFORE THEY'RE CREATED
+          echo "::add-mask::$(date +%s%N | sha256sum | head -c 64)"
+
+          # CREATE API KEY WITHOUT DIRECT OUTPUT LOGGING
+          # REDIRECT STDOUT TO A SECURE FILE INSTEAD OF DISPLAYING
+          API_KEY_JSON=$(aws apigateway create-api-key \
+            --name "${{ env.API_KEY_NAME }}" \
+            --description "${{ env.API_KEY_DESCRIPTION }}" \
+            --enabled \
+            --output json > /tmp/api_key_result.json)
+            
+          # GET ID WITHOUT PRINTING THE FULL JSON TO LOGS
+          API_KEY=$(cat /tmp/api_key_result.json | jq -r '.id')
+          echo "::add-mask::$API_KEY"
+          echo "API_KEY=$API_KEY" >> $GITHUB_ENV
+
+          # IMMEDIATELY MASK THE VALUE IN THE OUTPUT FILE
+          API_KEY_VALUE=$(cat /tmp/api_key_result.json | jq -r '.value')
+          echo "::add-mask::$API_KEY_VALUE"
+
+          # SECURELY REMOVE THE TEMP FILE WITH THE KEY DATA
+          shred -u /tmp/api_key_result.json
+            
+          # ADD API KEY TO USAGE PLAN
+          aws apigateway create-usage-plan-key \
+            --usage-plan-id ${{ env.USAGE_PLAN_ID }} \
+            --key-id $API_KEY \
+            --key-type API_KEY
+
+      - name: Output API URL
+        run: |
+          # GET API URL
+          API_URL="https://$API_ID.execute-api.${{ env.AWS_REGION }}.amazonaws.com/prod/"
+          echo "::add-mask::$API_URL"
+
+          # IMPORTANT: MASK THE API KEY VALUE BEFORE RETRIEVING IT
+          # USE A TEMPORARY FILE TO STORE THE RESULT WITHOUT DISPLAYING IT
+          aws apigateway get-api-key \
+            --api-key "$API_KEY" \
+            --include-value \
+            --output json > /tmp/api_key_value.json
+            
+          # EXTRACT AND MASK THE API KEY VALUE
+          API_KEY_VALUE=$(cat /tmp/api_key_value.json | jq -r '.value')
+          echo "::add-mask::$API_KEY_VALUE"
+
+          # SECURELY REMOVE THE TEMP FILE
+          shred -u /tmp/api_key_value.json
+
+          # DISPLAY NOTICE WITH SECURE INSTRUCTIONS
+          echo "::notice title=API Gateway Deployed::API GATEWAY HAS BEEN SUCCESSFULLY DEPLOYED WITH URL: $API_URL"
+
+          if [ -z "$EXISTING_API_KEY_ID" ]; then
+            echo "A NEW API KEY HAS BEEN GENERATED. USE THE 'X-API-KEY' HEADER WITH THIS KEY TO ACCESS THE API."
+          else
+            echo "EXISTING API KEY HAS BEEN REUSED. CONTINUE USING THE SAME API KEY WITH THE 'X-API-KEY' HEADER."
+          fi

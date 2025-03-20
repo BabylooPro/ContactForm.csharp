@@ -1,13 +1,14 @@
+using ContactForm.MinimalAPI;
+using ContactForm.MinimalAPI.Interfaces;
+using ContactForm.MinimalAPI.Models;
+using ContactForm.MinimalAPI.Services;
+using MailKit.Net.Smtp;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Moq;
-using MailKit.Net.Smtp;
-using ContactForm.MinimalAPI.Services;
-using ContactForm.MinimalAPI.Models;
-using ContactForm.MinimalAPI.Interfaces;
 using Microsoft.Extensions.Options;
+using Moq;
 
 namespace ContactForm.Tests.IntegrationTests
 {
@@ -21,8 +22,9 @@ namespace ContactForm.Tests.IntegrationTests
             builder.ConfigureServices(services =>
             {
                 // GETTING EMAIL SERVICE DESCRIPTOR
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(IEmailService));
+                var descriptor = services.SingleOrDefault(d =>
+                    d.ServiceType == typeof(IEmailService)
+                );
 
                 // REMOVING EMAIL SERVICE IF EXISTS
                 if (descriptor != null)
@@ -41,10 +43,10 @@ namespace ContactForm.Tests.IntegrationTests
                             Port = 465,
                             Email = "test@example.com",
                             Description = "Test SMTP",
-                            Index = 0
-                        }
+                            Index = 0,
+                        },
                     },
-                    ReceptionEmail = "reception@example.com"
+                    ReceptionEmail = "reception@example.com",
                 };
 
                 // CONFIGURING TEST SMTP SETTINGS
