@@ -240,6 +240,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set variables
+        run: |
+          echo "TESTS_PATH=$DEFAULT_TESTS_PATH" >> $GITHUB_ENV
+          echo "DOTNET_VERSION=$DEFAULT_DOTNET_VERSION" >> $GITHUB_ENV
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
