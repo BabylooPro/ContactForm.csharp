@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ContactForm.MinimalAPI.Interfaces;
@@ -66,20 +67,31 @@ namespace ContactForm.MinimalAPI.Services
             {
                 // CREATE SCOPE
                 using var scope = _serviceProvider.CreateScope();
-                var smtpClient = scope.ServiceProvider.GetRequiredService<ISmtpClientWrapper>();
                 var hasErrors = false;
                 var totalStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                var shuffledConfigs = new List<(SmtpConfig config, bool isTest)>();
 
                 // TESTING CONNECTIONS FOR BOTH REGULAR AND TEST EMAILS
                 foreach (var smtp in _smtpConfigs)
                 {
-                    // TEST REGULAR EMAIL CONFIGURATIONS
-                    await TestSmtpConnection(smtp, smtpClient, results, false);
+                    shuffledConfigs.Add((smtp, false)); // REGULAR EMAIL
 
-                    // TEST TEST EMAIL CONFIGURATIONS IF TEST EMAIL IS SPECIFIED
                     if (!string.IsNullOrEmpty(smtp.TestEmail))
                     {
-                        await TestSmtpConnection(smtp, smtpClient, results, true);
+                        shuffledConfigs.Add((smtp, true)); // TEST EMAIL
+                    }
+                }
+
+                // SHUFFLE CONFIG TO AVOID PATTERNS IN TESTING
+                shuffledConfigs = shuffledConfigs.OrderBy(_ => Guid.NewGuid()).ToList();
+
+                // TEST EACH CONFIG INDEPENDENTLY
+                foreach (var (config, isTest) in shuffledConfigs)
+                {
+                    // CREATE NEW CLIENT FOR EACH TEST
+                    using (var smtpClient = new Services.SmtpClientWrapper())
+                    {
+                        await TestSmtpConnection(config, smtpClient, results, isTest);
                     }
                 }
 
@@ -198,6 +210,20 @@ namespace ContactForm.MinimalAPI.Services
             }
             catch (Exception ex)
             {
+                // ENSURE DISCONNECTION IF CONNECTED
+                try
+                {
+                    if (smtpClient.IsConnected)
+                    {
+                        await smtpClient.DisconnectWithTokenAsync(true, CancellationToken.None);
+                    }
+                }
+                catch
+                {
+                    // IGNORE DISCONNECTION ERRORS DURING CLEANUP
+                }
+
+                // STOP STOPWATCH
                 testStopwatch.Stop();
                 results.Add(
                     (
