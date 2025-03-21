@@ -4,6 +4,9 @@
 
 **_New features to add_**
 
+- [ ] **add:** unit or integration test to ensure all critical environment variables (e.g. `SMTP_2_PASSWORD`) are properly initialized before the application starts
+  - Goal: avoid runtime errors like `System.InvalidOperationException: The following environment variables are missing or empty`
+  - Idea: mock the environment or use `Environment.SetEnvironmentVariable` in tests to simulate missing/valid scenarios
 - [ ] **add:** system of catch all email service
 
 ---
