@@ -225,14 +225,44 @@ namespace ContactForm.MinimalAPI.Services
 
                 // STOP STOPWATCH
                 testStopwatch.Stop();
+
+                // CREATE USER-FRIENDLY ERROR MESSAGE
+                string userFriendlyError = GetUserFriendlyErrorMessage(ex, smtp, emailToUse);
+
                 results.Add(
                     (
                         false,
-                        $"SMTP_{smtp.Index} {emailType}: {smtp.Description} ({emailToUse})\nSMTP_{smtp.Index} {emailType} connection test: FAILED ({testStopwatch.ElapsedMilliseconds}ms) - {ex.Message}\n",
+                        $"SMTP_{smtp.Index} {emailType}: {smtp.Description} ({emailToUse})\nSMTP_{smtp.Index} {emailType} connection test: FAILED ({testStopwatch.ElapsedMilliseconds}ms)\n Error: {userFriendlyError}\n",
                         testStopwatch.ElapsedMilliseconds
                     )
                 );
+
+                // LOG DETAILED ERROR FOR DEBUGGING
+                _logger.LogDebug(
+                    ex,
+                    $"SMTP connection test failed for {emailToUse} on {smtp.Host}:{smtp.Port}"
+                );
             }
+        }
+
+        // GET USER-FRIENDLY ERROR MESSAGE BASED ON EXECPETION TYPE AND CONTENT
+        private string GetUserFriendlyErrorMessage(
+            Exception ex,
+            SmtpConfig config,
+            string emailAdress
+        )
+        {
+            string exMessage = ex.Message;
+
+            // AUTHENTICATION FAILURE
+            if (exMessage.Contains("535") && exMessage.Contains("authentication failed"))
+            {
+                return $"Authentication failed. Email address ({emailAdress}) or password incorrect. Password environment variable should be verified.";
+            }
+
+            // TODO: ADD MORE EXCEPTION
+
+            return $"{exMessage} - Server settings and network connection should be checked.";
         }
     }
 }
