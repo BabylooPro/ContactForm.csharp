@@ -5,6 +5,7 @@ namespace ContactForm.MinimalAPI.Models
         public string Host { get; set; } = string.Empty;
         public int Port { get; set; }
         public string Email { get; set; } = string.Empty;
+        public string TestEmail { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public int Index { get; set; }
     }
@@ -13,5 +14,6 @@ namespace ContactForm.MinimalAPI.Models
     {
         public List<SmtpConfig> Configurations { get; set; } = new();
         public string ReceptionEmail { get; set; } = string.Empty;
+        public string CatchAllEmail { get; set; } = string.Empty;
     }
-} 
+}

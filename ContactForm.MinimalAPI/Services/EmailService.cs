@@ -1,14 +1,14 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using ContactForm.MinimalAPI.Interfaces;
 using ContactForm.MinimalAPI.Models;
 using MailKit.Security;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using System.Linq;
-using System.Threading;
 
 namespace ContactForm.MinimalAPI.Services
 {
@@ -24,11 +24,12 @@ namespace ContactForm.MinimalAPI.Services
 
         // CONSTRUCTOR INRIAIALIZING DEPENDENCY INJECTION
         public EmailService(
-            ILogger<EmailService> logger, 
+            ILogger<EmailService> logger,
             IOptions<SmtpSettings> smtpSettings,
             ISmtpClientWrapper smtpClient,
             IEmailTrackingService emailTracker,
-            IEmailTemplateService templateService)
+            IEmailTemplateService templateService
+        )
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _smtpSettings = smtpSettings.Value;
@@ -38,16 +39,19 @@ namespace ContactForm.MinimalAPI.Services
         }
 
         // METHOD FOR GETTING SMTP PASSWORD
-        private string GetSmtpPassword(SmtpConfig config)
+        private string GetSmtpPassword(SmtpConfig config, bool useTestEmail = false)
         {
-            var envVar = $"SMTP_{config.Index}_PASSWORD";
+            var envVar = useTestEmail
+                ? $"SMTP_{config.Index}_PASSWORD_TEST"
+                : $"SMTP_{config.Index}_PASSWORD";
+
             var password = Environment.GetEnvironmentVariable(envVar);
-            
+
             if (string.IsNullOrEmpty(password))
             {
                 throw new InvalidOperationException($"Environment variable {envVar} is not set");
             }
-            
+
             return password;
         }
 
@@ -59,7 +63,9 @@ namespace ContactForm.MinimalAPI.Services
             {
                 _logger.LogError("");
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"\nERROR: SMTP_{id} configuration not found. Available SMTP indexes: {string.Join(", ", _smtpSettings.Configurations.Select(x => x.Index))}\n");
+                Console.WriteLine(
+                    $"\nERROR: SMTP_{id} configuration not found. Available SMTP indexes: {string.Join(", ", _smtpSettings.Configurations.Select(x => x.Index))}\n"
+                );
                 Console.ResetColor();
                 throw new InvalidOperationException($"SMTP_{id} configuration not found");
             }
@@ -73,14 +79,21 @@ namespace ContactForm.MinimalAPI.Services
         }
 
         // METHOD FOR SENDING EMAIL
-        public async Task<bool> SendEmailAsync(EmailRequest request, int smtpId)
+        public async Task<bool> SendEmailAsync(
+            EmailRequest request,
+            int smtpId,
+            bool useTestEmail = false
+        )
         {
             try
             {
                 // CHECK IF EMAIL IS NULL
                 if (string.IsNullOrEmpty(request.Email))
                 {
-                    throw new ArgumentNullException(nameof(request.Email), "Email cannot be null or empty");
+                    throw new ArgumentNullException(
+                        nameof(request.Email),
+                        "Email cannot be null or empty"
+                    );
                 }
 
                 // CHECK IF EMAIL IS UNIQUE
@@ -90,22 +103,29 @@ namespace ContactForm.MinimalAPI.Services
                     Console.ForegroundColor = ConsoleColor.Yellow;
                     Console.WriteLine($"Duplicate email detected from: {request.Email}");
                     Console.ResetColor();
-                    throw new InvalidOperationException("This email has already been used to send a message");
+                    throw new InvalidOperationException(
+                        "This email has already been used to send a message"
+                    );
                 }
 
                 // VALIDATE SMTP CONFIG FIRST
                 var config = GetSmtpConfigById(smtpId);
                 if (config == null)
                 {
-                    throw new InvalidOperationException($"SMTP configuration with ID {smtpId} not found");
+                    throw new InvalidOperationException(
+                        $"SMTP configuration with ID {smtpId} not found"
+                    );
                 }
 
                 // CREATE EMAIL MESSAGE
                 var email = new MimeMessage();
-                
+
                 // SET EMAIL FROM AND TO
-                email.From.Add(new MailboxAddress(config.Email, config.Email));
-                email.To.Add(new MailboxAddress(_smtpSettings.ReceptionEmail, _smtpSettings.ReceptionEmail));
+                var fromEmail = useTestEmail ? config.TestEmail : config.Email;
+                email.From.Add(new MailboxAddress(fromEmail, fromEmail));
+                email.To.Add(
+                    new MailboxAddress(_smtpSettings.ReceptionEmail, _smtpSettings.ReceptionEmail)
+                );
 
                 // SET CUSTOM SUBJECT OR USE DEFAULT
                 var subject = request.SubjectTemplate;
@@ -171,28 +191,30 @@ namespace ContactForm.MinimalAPI.Services
                 if (string.IsNullOrEmpty(request.EmailTemplate))
                 {
                     // USE DEFAULT TEMPLATE
-                    bodyText = request.IsHtml 
+                    bodyText = request.IsHtml
                         ? $"""
-                        <div style='font-family: Arial, sans-serif; padding: 20px;'>
-                            <h2>New contact form submission</h2>
-                            <p><strong>From:</strong> {request.Email}</p>
-                            <p><strong>Name:</strong> {request.Username}</p>
-                            <p><strong>Message:</strong><br>{request.Message}</p>
-                        """
+                            <div style='font-family: Arial, sans-serif; padding: 20px;'>
+                                <h2>New contact form submission</h2>
+                                <p><strong>From:</strong> {request.Email}</p>
+                                <p><strong>Name:</strong> {request.Username}</p>
+                                <p><strong>Message:</strong><br>{request.Message}</p>
+                            """
                         : $"""
-                        New contact form submission:
-                        From: {request.Email}
-                        Name: {request.Username}
-                        Message: {request.Message}
-                        """;
+                            New contact form submission:
+                            From: {request.Email}
+                            Name: {request.Username}
+                            Message: {request.Message}
+                            """;
 
                     // ADD CUSTOM FIELDS IF ANY
                     if (request.CustomFields?.Any() == true)
                     {
-                        bodyText += request.IsHtml ? "<h3>Custom Fields:</h3><ul>" : "\nCustom Fields:";
+                        bodyText += request.IsHtml
+                            ? "<h3>Custom Fields:</h3><ul>"
+                            : "\nCustom Fields:";
                         foreach (var field in request.CustomFields)
                         {
-                            bodyText += request.IsHtml 
+                            bodyText += request.IsHtml
                                 ? $"<li><strong>{field.Key}:</strong> {field.Value}</li>"
                                 : $"\n{field.Key}: {field.Value}";
                         }
@@ -207,8 +229,8 @@ namespace ContactForm.MinimalAPI.Services
                 else
                 {
                     // USE CUSTOM TEMPLATE
-                    bodyText = request.EmailTemplate
-                        .Replace("{Email}", request.Email)
+                    bodyText = request
+                        .EmailTemplate.Replace("{Email}", request.Email)
                         .Replace("{Username}", request.Username)
                         .Replace("{Message}", request.Message);
 
@@ -241,22 +263,38 @@ namespace ContactForm.MinimalAPI.Services
                         {
                             if (string.IsNullOrEmpty(attachment.Base64Content))
                             {
-                                throw new InvalidOperationException($"Base64 content is missing for attachment {attachment.FileName}");
+                                throw new InvalidOperationException(
+                                    $"Base64 content is missing for attachment {attachment.FileName}"
+                                );
                             }
 
                             var content = Convert.FromBase64String(attachment.Base64Content);
-                            var contentType = attachment.ContentType ?? MimeTypes.GetMimeType(attachment.FileName ?? "unknown");
-                            builder.Attachments.Add(attachment.FileName ?? "unnamed", content, ContentType.Parse(contentType));
+                            var contentType =
+                                attachment.ContentType
+                                ?? MimeTypes.GetMimeType(attachment.FileName ?? "unknown");
+                            builder.Attachments.Add(
+                                attachment.FileName ?? "unnamed",
+                                content,
+                                ContentType.Parse(contentType)
+                            );
                         }
                         catch (FormatException ex)
                         {
-                            _logger.LogError($"Invalid Base64 content for attachment {attachment.FileName}: {ex.Message}");
-                            throw new InvalidOperationException($"Invalid Base64 content for attachment {attachment.FileName}");
+                            _logger.LogError(
+                                $"Invalid Base64 content for attachment {attachment.FileName}: {ex.Message}"
+                            );
+                            throw new InvalidOperationException(
+                                $"Invalid Base64 content for attachment {attachment.FileName}"
+                            );
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError($"Failed to add attachment {attachment.FileName}: {ex.Message}");
-                            throw new InvalidOperationException($"Failed to process attachment {attachment.FileName}");
+                            _logger.LogError(
+                                $"Failed to add attachment {attachment.FileName}: {ex.Message}"
+                            );
+                            throw new InvalidOperationException(
+                                $"Failed to process attachment {attachment.FileName}"
+                            );
                         }
                     }
                 }
@@ -264,18 +302,29 @@ namespace ContactForm.MinimalAPI.Services
                 email.Body = builder.ToMessageBody();
 
                 // LOG EMAIL DETAILS
-                _logger.LogInformation("Email Details:\nFrom: {From}\nTo: {To}\nSubject: {Subject}\nBody: {Body}", 
-                    email.From.ToString(), 
-                    email.To.ToString(), 
+                _logger.LogInformation(
+                    "Email Details:\nFrom: {From}\nTo: {To}\nSubject: {Subject}\nBody: {Body}",
+                    email.From.ToString(),
+                    email.To.ToString(),
                     email.Subject,
-                    builder.TextBody);
+                    builder.TextBody
+                );
 
                 // CONNECT TO SMTP SERVER
                 var cancellationToken = CancellationToken.None;
-                await _smtpClient.ConnectWithTokenAsync(config.Host, config.Port, SecureSocketOptions.SslOnConnect, cancellationToken);
+                await _smtpClient.ConnectWithTokenAsync(
+                    config.Host,
+                    config.Port,
+                    SecureSocketOptions.SslOnConnect,
+                    cancellationToken
+                );
 
                 // AUTHENTICATE WITH SMTP SERVER
-                await _smtpClient.AuthenticateWithTokenAsync(config.Email, GetSmtpPassword(config), cancellationToken);
+                await _smtpClient.AuthenticateWithTokenAsync(
+                    fromEmail,
+                    GetSmtpPassword(config, useTestEmail),
+                    cancellationToken
+                );
 
                 // SEND EMAIL
                 await _smtpClient.SendWithTokenAsync(email, cancellationToken);
@@ -286,7 +335,9 @@ namespace ContactForm.MinimalAPI.Services
                 // LOG SUCCESS
                 _logger.LogInformation("");
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"Email sent successfully using SMTP_{config.Index} ({config.Email} -> {_smtpSettings.ReceptionEmail})");
+                Console.WriteLine(
+                    $"Email sent successfully using SMTP_{config.Index} ({fromEmail} -> {_smtpSettings.ReceptionEmail})"
+                );
                 Console.ResetColor();
 
                 // IF EMAIL SENT SUCCESSFULLY, TRACK IT
@@ -304,10 +355,10 @@ namespace ContactForm.MinimalAPI.Services
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Failed to send email using SMTP_{smtpId}: {ex.Message}");
                 Console.ResetColor();
-                
+
                 // TRY NEXT AVAILABLE SMTP IN SEQUENCE
-                var nextConfig = _smtpSettings.Configurations
-                    .Where(x => x.Index > smtpId)
+                var nextConfig = _smtpSettings
+                    .Configurations.Where(x => x.Index > smtpId)
                     .OrderBy(x => x.Index)
                     .FirstOrDefault();
 
@@ -316,11 +367,13 @@ namespace ContactForm.MinimalAPI.Services
                 {
                     _logger.LogInformation("");
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"Attempting to use next SMTP configuration (SMTP_{nextConfig.Index})");
+                    Console.WriteLine(
+                        $"Attempting to use next SMTP configuration (SMTP_{nextConfig.Index})"
+                    );
                     Console.ResetColor();
-                    return await SendEmailAsync(request, nextConfig.Index);
+                    return await SendEmailAsync(request, nextConfig.Index, useTestEmail);
                 }
-                
+
                 return false; // RETURN FALSE IF NO SMTP CONFIG IS AVAILABLE
             }
             finally
