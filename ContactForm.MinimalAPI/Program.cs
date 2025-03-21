@@ -21,16 +21,26 @@ namespace ContactForm.MinimalAPI
     {
         public static void Main(string[] args)
         {
-            // CREATING WEB APPLICATION
-            var builder = WebApplication.CreateBuilder(args);
-            ConfigureServices(builder, builder.Services);
+            try
+            {
+                // CREATING WEB APPLICATION
+                var builder = WebApplication.CreateBuilder(args);
+                ConfigureServices(builder, builder.Services);
 
-            // BUILDING WEB APPLICATION
-            var app = builder.Build();
-            ConfigureApp(app);
+                // BUILDING WEB APPLICATION
+                var app = builder.Build();
+                ConfigureApp(app);
 
-            // RUNNING WEB APPLICATION
-            app.Run();
+                // RUNNING WEB APPLICATION
+                app.Run();
+            }
+            catch (InvalidOperationException ex)
+                when (ex.Message.Contains("SMTP connection test failed"))
+            {
+                // HANDLE SMTP CONNECTIONS FAILURE
+                Console.Error.WriteLine(ex.Message);
+                Environment.Exit(1);
+            }
         }
 
         public static void ConfigureServices(
@@ -105,7 +115,7 @@ namespace ContactForm.MinimalAPI
             services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
         }
 
-        public static void ConfigureApp(IApplicationBuilder app) // INFO: OLD VERSION: WebApplication app (TO WORKING WITH EnsureSmtpConnectionsAsync)
+        public static void ConfigureApp(IApplicationBuilder app)
         {
             // CONFIGURING MIDDLEWARE
             app.UseMiddleware<ErrorHandlingMiddleware>();
@@ -113,9 +123,6 @@ namespace ContactForm.MinimalAPI
             app.UseRouting();
             app.UseAuthorization();
             app.UseHttpsRedirection();
-
-            // VERIFY SMTP CONNECTIONS BEFORE CONFIGURING ROUTES
-            // EnsureSmtpConnectionsAsync(app.Services, app).GetAwaiter().GetResult();
 
             // CONFIGURE ENDPOINT ROUTE FOR CONTROLLERS
             app.UseEndpoints(endpoints =>
@@ -125,10 +132,17 @@ namespace ContactForm.MinimalAPI
             });
         }
 
-        public static async Task EnsureSmtpConnectionsAsync(
-            IServiceProvider serviceProvider,
-            WebApplication app
-        )
+        // OVERLOAD FOR WEBAPPLICATION
+        public static void ConfigureApp(WebApplication app)
+        {
+            // CONFIGURE THE APPLICATION
+            ConfigureApp((IApplicationBuilder)app);
+
+            // VERIFY SMTP CONNECTIONS BEFORE STARTING THE APP
+            EnsureSmtpConnectionsAsync(app.Services).GetAwaiter().GetResult();
+        }
+
+        public static async Task EnsureSmtpConnectionsAsync(IServiceProvider serviceProvider)
         {
             // GET LOGGER
             var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
@@ -136,15 +150,17 @@ namespace ContactForm.MinimalAPI
             // TEST SMTP CONNECTIONS
             try
             {
-                using var scope = app.Services.CreateScope();
+                using var scope = serviceProvider.CreateScope();
                 var smtpTestService = scope.ServiceProvider.GetRequiredService<ISmtpTestService>();
                 await smtpTestService.TestSmtpConnections();
             }
             catch (Exception)
             {
+                // NEED TO HANDLE SHUTDOWN WITHOUT DIRECT APP REFERENCE
                 logger.LogCritical("SMTP TEST FAILED");
-                await app.StopAsync();
-                Environment.Exit(1);
+                throw new InvalidOperationException(
+                    "SMTP connection test failed. Application must be terminated."
+                );
             }
         }
     }
