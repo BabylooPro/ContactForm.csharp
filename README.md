@@ -1,138 +1,244 @@
+# CONTACT FORM MINIMAL API DOTNET 8.0 / AWS LAMBDA - API GATEWAY
 
-# MINIMAL REST API FOR EMAIL SENDING
+[VERSION_BADGE]: https://img.shields.io/badge/dotnet-8.0.+-purple.svg
+[LICENSE_BADGE]: https://img.shields.io/badge/license-MIT-blue.svg
+[LICENSE_URL]: LICENSE
+[TODO_BADGE]: https://img.shields.io/badge/TODO-gren.svg
+[TODO_URL]: TODO.md
 
-This project is a Minimal REST API under .NET 8 for sending e-mails via SMTP from a `Contact Form`.
-It uses MailKit and MimeKit for constructing and sending emails and Xunit for integration tests.
+![Version][VERSION_BADGE] [![License][LICENSE_BADGE]][LICENSE_URL] [![TODO][TODO_BADGE]][TODO_URL]
 
-https://github.com/BabylooPro/ContactForm.csharp/assets/35376790/cf8e36a2-6eb6-45fd-bbfc-dbf9eb498b4f
+A flexible and customizable contact form backend API built with .NET 8 Minimal API. This service enables easy integration of contact forms on websites by providing a robust email sending service with multiple SMTP configurations, customizable templates, and attachment support.
 
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
-[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=bugs)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
-[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
-[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
-[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=BabylooPro_ContactForm.csharp&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
+## Features
 
-## Prerequisites
+- Multiple SMTP configurations with failover support
+- Customizable email templates (Default, Modern, Minimal, Professional, Alert)
+- HTML email support with rich formatting
+- Attachment handling with base64 encoding
+- Email priority levels (Low, Normal, High, Urgent)
+- AWS Lambda deployment support
+- Environment variable configuration for secure credential management
+- Custom email tracking service
+- Error handling middleware
+- CORS configuration for cross-domain integration
 
-To run this project, you will need:
+## Architecture
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- An SMTP server (environment variables must be set to refer to it)
+- **Services Layer**: Core services for email sending, SMTP testing, and template management
+- **Interfaces**: Clean separation of concerns using dependency injection
+- **Models**: Data models for email requests and SMTP configuration
+- **Middleware**: Error handling and request processing
+- **Controllers**: RESTful API endpoints
+- **AWS Lambda Integration**: Support for serverless deployment
 
-## Installation
+## Testing
 
-Clone the repository to your local machine using the following command:
+The project includes a comprehensive test suite in the `ContactForm.Tests` project, covering all aspects of the application:
 
-```bash
-git clone https://github.com/BabylooPro/ContactForm.csharp.git
-```
+- **Unit Tests**:
 
-Navigate to the cloned project's folder:
+  - `ModelsTests`: Validates data models and their validation rules
+  - `ServicesTests`: Tests individual services in isolation with mocked dependencies
+  - `ControllersTests`: Ensures API endpoints function correctly with mocked services
 
-```bash
-For the API solution
-cd ContactForm.csharp/ContactForm.MinimalAPI
+- **Integration Tests**:
+  - `IntegrationTests`: End-to-end tests using `ApplicationFactory` to simulate real API interactions
+  - Tests SMTP configuration, email sending with various templates and configurations
 
-For the Testing solution
-cd ContactForm.csharp/ContactForm.Tests
-```
+The test project uses xUnit and ASPNET Core testing framework for thorough testing coverage.
 
-## Project Configuration
-
-Before launching the application, it is necessary to configure the environment variables. You have two options for creating the `.env` file that will contain these variables:
-
-### Environment Variable Configuration
-
-#### *Option 1: Using Command Line*
-Run the following command in your terminal from `ContactForm.csharp/ContactForm.MinimalAPI` to automatically generate the `.env` file at the root of the `ContactForm.MinimalAPI` project. This command creates the file with the necessary configuration keys, but you will still need to fill them in with the appropriate values.
-
-On macOS and Linux:
-```bash
-echo -e "SMTP_HOST=
-SMTP_PORT=
-SMTP_EMAIL=
-SMTP_PASSWORD=
-RECEPTION_EMAIL=" > .env
-```
-
-On Windows (cmd):
-```cmd
-(echo SMTP_HOST=& echo SMTP_PORT=& echo SMTP_EMAIL=& echo SMTP_PASSWORD=& echo RECEPTION_EMAIL=) > .env
-```
-
-On Windows (PowerShell):
-```powershell
-"SMTP_HOST=`nSMTP_PORT=`nSMTP_EMAIL=`nSMTP_PASSWORD=`nRECEPTION_EMAIL=" | Out-File -FilePath .env -Encoding UTF8
-```
-
-*After running the appropriate command for your operating system, open the `.env` file and enter the values corresponding to your SMTP configuration next to each key.*
-
-#### *Option 2: Manual Creation*
-Manually create a `.env` file at the root of the ContactForm.MinimalAPI solution and add the following lines, replacing the bracketed values with your own SMTP configuration information:
-
-```env
-SMTP_HOST=[your_smtp_server]
-SMTP_PORT=[smtp_port]
-SMTP_EMAIL=[your_smtp_email]
-SMTP_PASSWORD=[your_smtp_password]
-RECEPTION_EMAIL=[reception_email]
-```
-
-### IDE Configuration
-
-To start working on this project, open it in an IDE compatible with C# and .NET, like Visual Studio, Visual Studio Code, or JetBrains Rider. The IDE should automatically restore NuGet packages and prepare the development environment.
-
-If the packages are not automatically restored, run the following command at the project root:
-
-```bash
-dotnet build
-```
-
-*This command compiles the project, downloads package dependencies specified in the `.csproj` file, and prepares everything needed to run the application.*
-
-## Starting the Application
-
-To start the application, run the following command from the `ContactForm.MinimalAPI` folder:
-
-```bash
-dotnet run
-```
-
-The API will be accessible by default on `http://localhost:5108` for http and `https://localhost:7129` for https.
-
-## Using the API
-
-To send an email, use the `/api/email/send-email` endpoint with a POST request containing the following information:
-
-```json
-{
-  "Email": "sender's_email_address",
-  "Username": "sender's_name",
-  "Message": "email_message"
-}
-```
-
-You can use `curl` or a tool like Postman to make this request.
-
-## Running Tests
-
-To run the tests, use the following command in folder ContactForm.MinimalAPI from terminal:
+To execute all tests in the `ContactForm.MinimalAPI` directory, run the following command:
 
 ```bash
 dotnet test
 ```
 
-This will run all the integration and validation tests defined in the test project.
+## API Endpoints
 
-## Contributing
+- `POST /api/email/{smtpId}` - Send an email using specified SMTP configuration
+- `POST /api/email/{smtpId}/test` - Send a test email using test email address
+- `GET /api/email/configs` - Get all available SMTP configurations
+- `GET /test` - Test if the API is running
 
-If you wish to contribute to this project, please fork the repository, make your changes, and submit a pull request for review.
+## Prerequisites
+
+Required for this project:
+
+- .NET SDK 8.0+
+- SMTP server access for sending emails
+- Environment variables for SMTP configurations
+
+## Configuration
+
+### SMTP Settings (appsettings.json)
+
+```json
+"SmtpSettings": {
+  "Configurations": [
+    {
+      "Host": "smtp.example.com",               // SMTP SERVER HOSTNAME
+      "Port": 465,                              // SMTP SERVER PORT (TYPICALLY 465 FOR SSL, 587 FOR TLS)
+      "Email": "contact@main-example.com",      // PRIMARY EMAIL ADDRESS FOR SENDING EMAILS
+      "TestEmail": "test@main-example.com",     // TEST EMAIL ADDRESS FOR TESTING FUNCTIONALITY
+      "Description": "Main contact email",      // DESCRIPTION FOR IDENTIFYING THIS CONFIGURATION
+      "Index": 1                                // UNIQUE INDEX FOR REFERENCING THIS CONFIGURATION
+    },
+    {
+      "Host": "smtp.example.com",               // SECOND SMTP SERVER (CAN BE SAME HOST)
+      "Port": 465,                              // SECOND SMTP PORT
+      "Email": "contact@second-example.com",    // SECONDARY EMAIL FOR SENDING
+      "TestEmail": "test@second-example.com",   // SECONDARY TEST EMAIL
+      "Description": "Second contact email",    // DESCRIPTION FOR SECOND CONFIGURATION
+      "Index": 2                                // UNIQUE INDEX FOR SECOND CONFIGURATION (MUST BE DIFFERENT)
+    }
+  ],
+  "ReceptionEmail": "reception@example.com",    // DEFAULT RECIPIENT EMAIL FOR TESTING
+  "CatchAllEmail": "catchall@example.com"       // FALLBACK EMAIL FOR CATCHING UNDELIVERABLE MESSAGES
+}
+```
+
+### Environment Variables (.env)
+
+```
+# MAIN REGULAR EMAIL PASSWORD
+SMTP_1_PASSWORD=password_value_here
+
+# MAIN TEST EMAIL PASSWORD
+SMTP_1_PASSWORD_TEST=test_password_value_here
+
+# SECOND REGULAR EMAIL PASSWORD
+SMTP_2_PASSWORD=password_value_here
+
+# SECOND TEST EMAIL PASSWORD
+SMTP_2_PASSWORD_TEST=test_password_value_here
+```
+
+## Installation
+
+```bash
+# CLONE THE REPOSITORY
+git clone https://github.com/BabylooPro/ContactForm.csharp.git
+
+# NAVIGATE TO PROJECT DIRECTORY
+cd ContactForm.csharp/ContactForm.MinimalAPI
+
+# CREATE .ENV FILE ON MACOS/LINUX
+cat > .env << EOF
+# MAIN REGULAR EMAIL PASSWORD
+SMTP_1_PASSWORD=password_value_here
+
+# MAIN TEST EMAIL PASSWORD
+SMTP_1_PASSWORD_TEST=test_password_value_here
+
+# SECOND REGULAR EMAIL PASSWORD
+SMTP_2_PASSWORD=password_value_here
+
+# SECOND TEST EMAIL PASSWORD
+SMTP_2_PASSWORD_TEST=test_password_value_here
+EOF
+
+# OR CREATE .ENV FILE ON WINDOWS (POWERSHELL)
+@"
+# MAIN REGULAR EMAIL PASSWORD
+SMTP_1_PASSWORD=password_value_here
+
+# MAIN TEST EMAIL PASSWORD
+SMTP_1_PASSWORD_TEST=test_password_value_here
+
+# SECOND REGULAR EMAIL PASSWORD
+SMTP_2_PASSWORD=password_value_here
+
+# SECOND TEST EMAIL PASSWORD
+SMTP_2_PASSWORD_TEST=test_password_value_here
+"@ | Out-File -FilePath .env -Encoding utf8
+
+# RESTORE DEPENDENCIES
+dotnet restore
+
+# CLEAN SOLUTION
+dotnet clean
+
+# BUILD SOLUTION
+dotnet build
+
+# RUN TESTS
+dotnet test
+
+# RUN PROJECT
+dotnet run
+```
+
+## AWS Lambda Deployment
+
+The project includes AWS Lambda integration via the `LambdaEntryPoint.cs` class and is deployed automatically through GitHub Actions.
+
+### Automated Deployment (GitHub Actions)
+
+Deployment is fully automated using the GitHub Actions workflow defined in [.github/workflows/aws-deploy.yml](.github/workflows/aws-deploy.yml).
+
+**This workflow includes:**
+
+- Builds and packages the application
+- Creates necessary IAM roles and permissions for Lambda execution
+- Deploys to AWS Lambda with proper environment variables
+- Configures API Gateway with REST endpoints and proxy resources
+- Sets up usage plans, throttling limits, and API keys
+- Configures CORS for cross-domain access
+- Preserves API Gateway ID across deployments for endpoint stability
+
+**Workflow Structure:**
+
+1. First creates OIDC role for GitHub Actions with necessary permissions
+2. Runs tests for the application (optional)
+3. Builds and packages the .NET application for Lambda
+4. Creates IAM execution roles for Lambda function
+5. Deploys Lambda function with environment configuration
+6. Creates or reuses API Gateway with proper resources and methods
+7. Sets up Lambda permissions for API Gateway invocation
+8. Configures CORS headers for all API resources
+9. Creates or reuses API keys and usage plans
+
+_For detailed documentation of this deployment workflow, see this [README](https://github.com/BabylooPro/TEMPLATE-DEPLOY-WORKFLOW-DOTNET-AWS-LAMBDA-APIGATEWAY/blob/main/README.md)._
+
+**To trigger deployment:**
+
+1. Manually trigger the "Deploy to AWS Lambda" workflow from the GitHub Actions tab `https://github.com/[OWNER]/[REPO]/actions/workflows/aws-deploy.yml` and click `Run workflow` button.
+
+**Required GitHub secrets:**
+
+- `AWS_ACCESS_KEY_ID` - AWS access key with deployment permissions
+- `AWS_SECRET_ACCESS_KEY` - AWS secret key
+- `SMTP_1_PASSWORD` - SMTP password for configuration 1 for regular email
+- `SMTP_1_PASSWORD_TEST` - SMTP password for configuration 1 for test email
+- `SMTP_2_PASSWORD` - SMTP password for configuration 2 for regular email
+- `SMTP_2_PASSWORD_TEST` - SMTP password for configuration 2 for test email
+
+### Manual Deployment (UNTESTED)
+
+For manual deployment:
+
+1. Configure AWS credentials locally
+2. Build the project with `dotnet publish`
+3. Deploy using AWS SAM or AWS CDK commands
+
+## Example Usage
+
+Send an email via the API:
+
+```http
+POST /api/email/1
+Content-Type: application/json
+
+{
+  "Email": "sender@example.com",                // SENDER EMAIL ADDRESS
+  "Username": "John Doe",                       // SENDER NAME
+  "Message": "Hello, this is a test message",   // MESSAGE CONTENT
+  "IsHtml": false,                              // SET TO TRUE FOR HTML-FORMATTED EMAILS
+  "Priority": "Normal"                          // EMAIL PRIORITY (LOW, NORMAL, HIGH, URGENT)
+}
+```
 
 ## License
 
-This project is under the MIT License. See the [LICENSE](LICENSE) file for more details.
-
----
-
-[![SonarCloud](https://sonarcloud.io/images/project_badges/sonarcloud-orange.svg)](https://sonarcloud.io/summary/new_code?id=BabylooPro_ContactForm.csharp)
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
