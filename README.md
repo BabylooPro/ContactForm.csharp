@@ -43,11 +43,22 @@ The project includes a comprehensive test suite in the `ContactForm.Tests` proje
 
   - `ModelsTests`: Validates data models and their validation rules
   - `ServicesTests`: Tests individual services in isolation with mocked dependencies
+    - `EmailServiceTests`: Email generation and sending functionality
+    - `EmailTrackingServiceTests`: Rate limiting and usage tracking
+    - `IpProtectionServiceTests`: IP blocking, expiration, and abuse detection
+    - `RateLimitingMiddlewareTests`: Request throttling, IP blocking, and rate limit checks
   - `ControllersTests`: Ensures API endpoints function correctly with mocked services
 
 - **Integration Tests**:
+
   - `IntegrationTests`: End-to-end tests using `ApplicationFactory` to simulate real API interactions
-  - Tests SMTP configuration, email sending with various templates and configurations
+  - `SecurityHeadersTests`: Validates security headers and CORS configurations across requests
+  - `RateLimitingIntegrationTests`: Tests rate limiting functionality with real HTTP requests
+  - `IpSpoofingTests`: Detects and blocks suspicious IP spoofing attempts
+
+- **Performance and Concurrency Tests**:
+  - `RateLimitingPerformanceTests`: Measures overhead of rate limiting middleware
+  - `IpProtectionServiceConcurrencyTests`: Validates thread safety under concurrent traffic
 
 The test project uses xUnit and ASPNET Core testing framework for thorough testing coverage.
 
