@@ -97,14 +97,47 @@ namespace ContactForm.MinimalAPI.Services
                 }
 
                 // CHECK IF EMAIL IS UNIQUE
-                if (!await _emailTracker.IsEmailUnique(request.Email))
+                var uniqueResult = await _emailTracker.IsEmailUnique(request.Email, smtpId);
+                if (!uniqueResult.IsAllowed)
                 {
                     _logger.LogWarning("");
                     Console.ForegroundColor = ConsoleColor.Yellow;
                     Console.WriteLine($"Duplicate email detected from: {request.Email}");
+                    Console.WriteLine($"Usage: {uniqueResult.UsageCount}");
+                    Console.WriteLine($"Time remaining: {uniqueResult.TimeRemaining}");
                     Console.ResetColor();
+                    
+                    // FORMAT TIME REMAINING IN HUMAN-READABLE FORMAT
+                    string timeMessage = "";
+                    if (uniqueResult.TimeRemaining.HasValue)
+                    {
+                        var timeSpan = uniqueResult.TimeRemaining.Value;
+                        var hours = (int)timeSpan.TotalHours;
+                        var minutes = timeSpan.Minutes;
+                        var seconds = timeSpan.Seconds;
+                        
+                        // SHOW COMBINATION OF HOURS, MINUTES, AND SECONDS
+                        if (hours > 0)
+                        {
+                            timeMessage = $"{hours} hour{(hours > 1 ? "s" : "")}";
+                            if (minutes > 0)
+                                timeMessage += $" {minutes} minute{(minutes > 1 ? "s" : "")}";
+                        }
+                        else if (minutes > 0)
+                        {
+                            timeMessage = $"{minutes} minute{(minutes > 1 ? "s" : "")}";
+                            if (seconds > 0)
+                                timeMessage += $" {seconds} second{(seconds > 1 ? "s" : "")}";
+                        }
+                        else
+                        {
+                            timeMessage = $"{seconds} second{(seconds > 1 ? "s" : "")}";
+                        }
+                    }
+                    
                     throw new InvalidOperationException(
-                        "This email has already been used to send a message"
+                        $"This email has already been used to send a message with this SMTP server. " +
+                        $"You can send another message in {timeMessage} (Usage: {uniqueResult.UsageCount})"
                     );
                 }
 
@@ -340,7 +373,7 @@ namespace ContactForm.MinimalAPI.Services
                 Console.ResetColor();
 
                 // IF EMAIL SENT SUCCESSFULLY, TRACK IT
-                await _emailTracker.TrackEmail(request.Email);
+                await _emailTracker.TrackEmail(request.Email, config.Index);
                 return true;
             }
             catch (InvalidOperationException)

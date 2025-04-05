@@ -83,7 +83,8 @@ namespace ContactForm.Tests.IntegrationTests
 
             // SETUP EMAIL TRACKER MOCK
             var emailTrackerMock = new Mock<IEmailTrackingService>();
-            emailTrackerMock.Setup(x => x.IsEmailUnique(It.IsAny<string>())).ReturnsAsync(true);
+            emailTrackerMock.Setup(x => x.IsEmailUnique(It.IsAny<string>(), It.IsAny<int>()))
+                .ReturnsAsync((true, (TimeSpan?)null, 0));
 
             // SETUP TEMPLATE SERVICE MOCK
             _templateServiceMock.Setup(x => x.GetTemplate(It.IsAny<PredefinedTemplate>()))
