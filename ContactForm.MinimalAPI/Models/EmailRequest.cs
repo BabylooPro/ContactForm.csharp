@@ -13,7 +13,6 @@ namespace ContactForm.MinimalAPI.Models
         public string? Email { get; set; }
 
         // RECEPTION USERNAME
-        [Required(ErrorMessage = "The Username field is required.")]
         public string? Username { get; set; }
 
         // RECEPTION MESSAGE

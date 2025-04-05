@@ -196,13 +196,12 @@ namespace ContactForm.MinimalAPI.Services
                             <div style='font-family: Arial, sans-serif; padding: 20px;'>
                                 <h2>New contact form submission</h2>
                                 <p><strong>From:</strong> {request.Email}</p>
-                                <p><strong>Name:</strong> {request.Username}</p>
+                                {(string.IsNullOrEmpty(request.Username) ? "" : $"<p><strong>Name:</strong> {request.Username}</p>")}
                                 <p><strong>Message:</strong><br>{request.Message}</p>
                             """
                         : $"""
                             New contact form submission:
-                            From: {request.Email}
-                            Name: {request.Username}
+                            From: {request.Email}{(string.IsNullOrEmpty(request.Username) ? "" : $"\nName: {request.Username}")}
                             Message: {request.Message}
                             """;
 
@@ -231,7 +230,7 @@ namespace ContactForm.MinimalAPI.Services
                     // USE CUSTOM TEMPLATE
                     bodyText = request
                         .EmailTemplate.Replace("{Email}", request.Email)
-                        .Replace("{Username}", request.Username)
+                        .Replace("{Username}", request.Username ?? "")
                         .Replace("{Message}", request.Message);
 
                     // REPLACE CUSTOM FIELDS IN TEMPLATE

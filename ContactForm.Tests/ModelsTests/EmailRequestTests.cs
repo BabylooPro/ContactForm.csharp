@@ -32,7 +32,6 @@ namespace ContactForm.Tests.Models
         // TEST FOR EMAIL REQUEST FAILS VALIDATION WHEN MODEL IS INVALID
         [Theory]
         [InlineData("", "testuser", "Hello, this is a test message.", false)] // Empty email
-        [InlineData("test@example.com", "", "Hello, this is a test message.", false)] // Empty username
         [InlineData("test@example.com", "testuser", "", false)] // Empty message
         [InlineData("invalid-email", "testuser", "Hello, this is a test message.", false)] // Invalid email
         public void EmailRequest_Validation_FailsOnInvalidData(string email, string username, string message, bool expectedIsValid)
@@ -56,6 +55,28 @@ namespace ContactForm.Tests.Models
             {
                 Assert.NotEmpty(results);
             }
+        }
+
+        // TEST FOR EMAIL REQUEST WITH EMPTY USERNAME STILL PASSES VALIDATION
+        [Fact]
+        public void EmailRequest_EmptyUsername_PassesValidation()
+        {
+            // ARRANGE - CREATING EMAIL REQUEST WITH EMPTY USERNAME
+            var request = new EmailRequest
+            {
+                Email = "test@example.com",
+                Username = "",
+                Message = "Hello, this is a test message."
+            };
+            var context = new ValidationContext(request, serviceProvider: null, items: null);
+            var results = new List<ValidationResult>();
+
+            // ACT - VALIDATING EMAIL REQUEST
+            bool isValid = Validator.TryValidateObject(request, context, results, true);
+
+            // ASSERT - CHECKING IF MODEL IS VALID
+            Assert.True(isValid);
+            Assert.Empty(results);
         }
     }
 }
