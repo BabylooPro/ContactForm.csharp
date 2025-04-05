@@ -57,6 +57,55 @@ Each SMTP configuration requires corresponding environment variables:
 - `SMTP_2_PASSWORD` for the password of the SMTP configuration with Index 2
 - `SMTP_2_PASSWORD_TEST` for the password of the SMTP configuration with Index 2 for test email
 
+## Rate Limiting
+
+The API implements a progressive rate limiting system to prevent spam and abuse:
+
+- Each sender email is tracked separately per SMTP configuration
+- First-time usage has no rate limiting
+- Each subsequent usage increases the timeout period by 1 hour
+- For example:
+  - First submission: No waiting period
+  - Second submission: 1 hour waiting period
+  - Third submission: 2 hour waiting period
+  - Fourth submission: 3 hour waiting period
+- If a user attempts to submit while rate-limited, they receive a detailed error message with:
+  - The remaining wait time in a human-readable format
+  - Their current usage count
+- Rate limits are tracked independently for each SMTP configuration
+
+## API Request Rate Limiting and Anti-Abuse
+
+In addition to the email submission rate limiting, the API implements an advanced request-level rate limiting and anti-abuse system:
+
+### Standard Rate Limiting
+
+- Each IP address is limited to 10 requests per minute
+- When exceeded, returns HTTP 429 (Too Many Requests) with a "Retry-After" header
+- Independent from the email submission rate limiting system
+
+### Anti-Abuse Detection
+
+- Monitors traffic patterns for suspicious activity:
+  - **Burst Detection**: If an IP sends 20+ requests within a 5-second window, it triggers an automatic 1-hour block
+  - **Excessive Traffic**: If an IP sends 100+ requests within a 10-minute window, it triggers an automatic 6-hour block
+- Blocked IPs receive HTTP 403 (Forbidden) with an explanation message
+
+### Implementation Details
+
+- All IP tracking is done in-memory only (no permanent storage)
+- Data automatically expires and is cleaned up after 30 minutes of inactivity
+- No persistent tracking of user IPs
+- Memory-efficient with automatic cleanup of expired data
+- Restart of the application/Lambda function clears all tracking data
+
+### Error Responses
+
+| Status Code           | Description                           |
+| --------------------- | ------------------------------------- |
+| 429 Too Many Requests | Rate limit exceeded                   |
+| 403 Forbidden         | IP blocked due to suspicious activity |
+
 ## API Reference
 
 ### Send Email
@@ -80,7 +129,7 @@ POST /api/email/{smtpId}
 | Property        | Type    | Required | Description                                           |
 | --------------- | ------- | -------- | ----------------------------------------------------- |
 | Email           | string  | Yes      | Sender's email address                                |
-| Username        | string  | Yes      | Sender's name                                         |
+| Username        | string  | No       | Sender's name (optional)                              |
 | Message         | string  | Yes      | Message content                                       |
 | CustomFields    | object  | No       | Dictionary of custom fields for template substitution |
 | EmailTemplate   | string  | No       | Custom email template with placeholders               |
@@ -108,10 +157,17 @@ POST /api/email/{smtpId}
 
 ##### Error Responses
 
-| Status Code               | Description          |
-| ------------------------- | -------------------- |
-| 400 Bad Request           | Invalid request data |
-| 500 Internal Server Error | Failed to send email |
+| Status Code               | Description                                         |
+| ------------------------- | --------------------------------------------------- |
+| 400 Bad Request           | Invalid request data                                |
+| 429 Too Many Requests     | Rate limit exceeded with time remaining information |
+| 500 Internal Server Error | Failed to send email                                |
+
+Rate limit error example:
+
+```json
+"This email has already been used to send a message with this SMTP server. You can send another message in 1 hour (Usage: 2)"
+```
 
 ### Send Test Email
 
@@ -179,6 +235,8 @@ MESSAGE: {Message}
 CUSTOM_FIELD: {CustomFields.field_name}
 ```
 
+If Username is empty, this field can be omitted in the template rendering.
+
 ### Subject Templates
 
 Similar to email templates, subject templates support placeholders:
@@ -204,6 +262,7 @@ The API provides several predefined templates that can be selected using the `Te
 The API includes middleware for standardized error handling:
 
 - Validation errors return 400 Bad Request with details
+- Rate limiting violations return details with waiting time information
 - SMTP connection failures initiate graceful shutdown
 - Unexpected errors return 500 Internal Server Error
 
@@ -213,3 +272,4 @@ The API includes middleware for standardized error handling:
 - SMTP passwords are stored as environment variables, not in configuration files
 - SMTP connections are tested at startup to ensure availability
 - Separate test email configurations allow for safe testing without affecting production settings
+- Rate limiting helps prevent abuse and spam
