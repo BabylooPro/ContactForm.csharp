@@ -5,8 +5,10 @@
 [LICENSE_URL]: LICENSE
 [TODO_BADGE]: https://img.shields.io/badge/TODO-gren.svg
 [TODO_URL]: TODO.md
+[DOCS_BADGE]: https://img.shields.io/badge/DOCS-blue.svg
+[DOCS_URL]: DOCS.md
 
-![Version][VERSION_BADGE] [![License][LICENSE_BADGE]][LICENSE_URL] [![TODO][TODO_BADGE]][TODO_URL]
+![Version][VERSION_BADGE] [![License][LICENSE_BADGE]][LICENSE_URL] [![TODO][TODO_BADGE]][TODO_URL] [![DOCS][DOCS_BADGE]][DOCS_URL]
 
 A flexible and customizable contact form backend API built with .NET 8 Minimal API. This service enables easy integration of contact forms on websites by providing a robust email sending service with multiple SMTP configurations, customizable templates, and attachment support.
 
@@ -60,6 +62,13 @@ dotnet test
 - `POST /api/email/{smtpId}/test` - Send a test email using test email address
 - `GET /api/email/configs` - Get all available SMTP configurations
 - `GET /test` - Test if the API is running
+
+## Documentation
+
+The API documentation is available in two formats:
+
+- **Detailed Documentation**: See the [DOCS.md](DOCS.md) file for comprehensive API documentation including request/response formats, templates, and configuration details.
+- **Interactive Swagger UI**: When running the API locally, access the Swagger documentation at the root URL `http://localhost:5108/` on navigator. Swagger provides an interactive interface to explore and test all API endpoints.
 
 ## Prerequisites
 
