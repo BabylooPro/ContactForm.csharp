@@ -82,7 +82,11 @@ namespace ContactForm.MinimalAPI
                 options.AddDefaultPolicy(policy =>
                 {
                     policy
-                        .AllowAnyOrigin()
+                        .WithOrigins(
+                            "http://localhost:3000",
+                            "https://maxremy.dev",
+                            "https://keypops.app"
+                        )
                         .AllowAnyMethod()
                         .AllowAnyHeader()
                         .WithExposedHeaders(
@@ -136,6 +140,20 @@ namespace ContactForm.MinimalAPI
             // CONFIGURING MIDDLEWARE
             app.UseMiddleware<ErrorHandlingMiddleware>();
             app.UseRateLimiting();
+            
+            // ADD SECURITY HEADERS
+            app.Use(async (context, next) =>
+            {
+                // SECURITY HEADERS
+                context.Response.Headers.Add("X-Content-Type-Options", "nosniff");
+                context.Response.Headers.Add("X-Frame-Options", "DENY");
+                context.Response.Headers.Add("X-XSS-Protection", "1; mode=block");
+                context.Response.Headers.Add("Referrer-Policy", "strict-origin-when-cross-origin");
+                context.Response.Headers.Add("Content-Security-Policy", "default-src 'self'");
+                
+                await next();
+            });
+            
             app.UseCors();
             app.UseRouting();
             app.UseAuthorization();
