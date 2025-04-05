@@ -108,6 +108,9 @@ namespace ContactForm.MinimalAPI
             services.AddScoped<ISmtpClientWrapper, SmtpClientWrapper>();
             services.AddScoped<IEmailTrackingService, EmailTrackingService>();
             services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+            
+            // REGISTER IP PROTECTION SERVICES
+            services.AddSingleton<IIpProtectionService, IpProtectionService>();
 
             // ADDING CONTROLLER SUPPORT
             services.AddControllers();
@@ -132,6 +135,7 @@ namespace ContactForm.MinimalAPI
         {
             // CONFIGURING MIDDLEWARE
             app.UseMiddleware<ErrorHandlingMiddleware>();
+            app.UseRateLimiting();
             app.UseCors();
             app.UseRouting();
             app.UseAuthorization();
