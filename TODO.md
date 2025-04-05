@@ -17,6 +17,7 @@
 
 #### DONE
 
+- [x] **fixed:** security headers warnings (ASP0015) by using strongly-typed header properties instead of string indexers
 - [x] **fixed:** deactivation of EnsureSmtpConnectionsAsync() in Program, caused by a conflict between IApplicationBuilder and WebApplication, using WebApplication allows EnsureSmtpConnectionsAsync() to function correctly but causes an issue in LambdaEntryPoint within ConfigureApp
 - [x] **fixed:** test job running workflow make error (specify a project or solution file. The current working directory does not contain a project or solution file.)
 
