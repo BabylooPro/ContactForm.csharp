@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.OpenApi.Models;
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ContactForm.Tests")]
 
@@ -111,6 +112,18 @@ namespace ContactForm.MinimalAPI
             // ADDING CONTROLLER SUPPORT
             services.AddControllers();
 
+            // ADDING SWAGGER
+            services.AddEndpointsApiExplorer();
+            services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Title = "Contact Form API",
+                    Version = "v1",
+                    Description = "An API for handling contact form submissions"
+                });
+            });
+
             // ADDING LAMBDA SUPPORT
             services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
         }
@@ -123,6 +136,14 @@ namespace ContactForm.MinimalAPI
             app.UseRouting();
             app.UseAuthorization();
             app.UseHttpsRedirection();
+
+            // ADDING SWAGGER UI
+            app.UseSwagger();
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Contact Form API v1");
+                c.RoutePrefix = string.Empty; // SERVES SWAGGER UI AT THE ROOT URL
+            });
 
             // CONFIGURE ENDPOINT ROUTE FOR CONTROLLERS
             app.UseEndpoints(endpoints =>
