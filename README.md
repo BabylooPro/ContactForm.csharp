@@ -21,9 +21,10 @@ A flexible and customizable contact form backend API built with .NET 8 Minimal A
 - Email priority levels (Low, Normal, High, Urgent)
 - AWS Lambda deployment support
 - Environment variable configuration for secure credential management
-- Custom email tracking service
+- Advanced email tracking with rate limiting and progressive timeout
 - Error handling middleware
 - CORS configuration for cross-domain integration
+- Optional username field for anonymous submissions
 
 ## Architecture
 
@@ -62,6 +63,30 @@ dotnet test
 - `POST /api/email/{smtpId}/test` - Send a test email using test email address
 - `GET /api/email/configs` - Get all available SMTP configurations
 - `GET /test` - Test if the API is running
+
+## Rate Limiting
+
+The API implements a dual-layer rate limiting system to prevent spam and abuse:
+
+### Email Submission Rate Limiting
+
+- Tracks email usage per SMTP configuration
+- Implements adaptive timeout periods based on usage count
+- First submission has no delay
+- Subsequent submissions have an increasing timeout (1 hour per usage count)
+- Different SMTP configurations are tracked separately
+
+### API Request Rate Limiting and Anti-Abuse
+
+- IP-based rate limiting with 10 requests per minute per IP
+- Advanced traffic pattern analysis to detect abuse:
+  - Burst detection (20+ requests in 5 seconds) triggers automatic 1-hour block
+  - Excessive requests (100+ in 10 minutes) triggers automatic 6-hour block
+- In-memory IP tracking with automatic cleanup
+- Returns appropriate HTTP status codes:
+  - 429 Too Many Requests for rate limiting
+  - 403 Forbidden for blocked IPs
+- No persistent IP storage - data is cleared on application restart
 
 ## Documentation
 
@@ -240,9 +265,9 @@ POST /api/email/1
 Content-Type: application/json
 
 {
-  "Email": "sender@example.com",                // SENDER EMAIL ADDRESS
-  "Username": "John Doe",                       // SENDER NAME
-  "Message": "Hello, this is a test message",   // MESSAGE CONTENT
+  "Email": "sender@example.com",                // SENDER EMAIL ADDRESS (REQUIRED)
+  "Username": "John Doe",                       // SENDER NAME (OPTIONAL)
+  "Message": "Hello, this is a test message",   // MESSAGE CONTENT (REQUIRED)
   "IsHtml": false,                              // SET TO TRUE FOR HTML-FORMATTED EMAILS
   "Priority": "Normal"                          // EMAIL PRIORITY (LOW, NORMAL, HIGH, URGENT)
 }
