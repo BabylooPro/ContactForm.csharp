@@ -99,6 +99,33 @@ In addition to the email submission rate limiting, the API implements an advance
 - Memory-efficient with automatic cleanup of expired data
 - Restart of the application/Lambda function clears all tracking data
 
+### Comprehensive Security Testing
+
+The security features are thoroughly tested with dedicated test suites:
+
+- **Unit Tests**:
+
+  - `IpProtectionServiceTests`: Validates IP blocking, expiration, and abuse detection
+  - `RateLimitingMiddlewareTests`: Tests request throttling and appropriate status codes
+
+- **Integration Tests**:
+
+  - `SecurityHeadersTests`: Ensures proper security headers are set for all responses
+  - `RateLimitingIntegrationTests`: End-to-end testing of rate limiting with real HTTP requests
+  - `IpSpoofingTests`: Tests detection and blocking of IP spoofing attempts
+
+- **Performance and Concurrency Tests**:
+  - `RateLimitingPerformanceTests`: Measures the performance impact of rate limiting
+  - `IpProtectionServiceConcurrencyTests`: Validates thread safety under high concurrent load
+
+These tests ensure that the security features work correctly under various conditions, including:
+
+- High traffic scenarios
+- Abuse and spam detection
+- Concurrent access
+- Different HTTP methods and routes
+- Various user agents and client types
+
 ### Error Responses
 
 | Status Code           | Description                           |
