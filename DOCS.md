@@ -18,6 +18,7 @@ The ContactForm API is a RESTful web service designed to handle contact form sub
 - System.Net.Mail (Email functionality)
 - dotenv net (Environment variable loading)
 - AWS Lambda support libraries (for Lambda deployment)
+- Asp Versioning (API Versioning support)
 
 ### Configuration
 
@@ -25,28 +26,28 @@ The API uses configuration from [appsettings.json](appsettings.json) and environ
 
 ```json
 {
-  "SmtpSettings": {
-    "Configurations": [
-      {
-        "Index": 1,
-        "Host": "smtp.example.com",
-        "Port": 465,
-        "Email": "contact@example.com",
-        "TestEmail": "test@example.com",
-        "Description": "Contact email for example.com website"
-      },
-      {
-        "Index": 2,
-        "Host": "smtp.example.com",
-        "Port": 587,
-        "Email": "contact-second@example.com",
-        "TestEmail": "test-second@example.com",
-        "Description": "Contact email for example.com website seconde"
-      }
-    ],
-    "ReceptionEmail": "reception@example.com",
-    "CatchAllEmail": "catchallemail@example.com"
-  }
+    "SmtpSettings": {
+        "Configurations": [
+            {
+                "Index": 1,
+                "Host": "smtp.example.com",
+                "Port": 465,
+                "Email": "contact@example.com",
+                "TestEmail": "test@example.com",
+                "Description": "Contact email for example.com website"
+            },
+            {
+                "Index": 2,
+                "Host": "smtp.example.com",
+                "Port": 587,
+                "Email": "contact-second@example.com",
+                "TestEmail": "test-second@example.com",
+                "Description": "Contact email for example.com website seconde"
+            }
+        ],
+        "ReceptionEmail": "reception@example.com",
+        "CatchAllEmail": "catchallemail@example.com"
+    }
 }
 ```
 
@@ -57,6 +58,41 @@ Each SMTP configuration requires corresponding environment variables:
 - `SMTP_2_PASSWORD` for the password of the SMTP configuration with Index 2
 - `SMTP_2_PASSWORD_TEST` for the password of the SMTP configuration with Index 2 for test email
 
+## API Versioning
+
+The API implements versioning to ensure **backward compatibility** as the API evolves. All endpoints require an explicit version.
+
+### Versioning Methods
+
+The API supports 3 methods of specifying the version:
+
+1. **URL Path** (Recommended)
+
+    ```
+    /api/v1/email/1
+    ```
+
+2. **Query String**
+
+    ```
+    /api/email/1?api-version=1.0
+    ```
+
+3. **Header**
+    ```
+    X-Version: 1.0
+    ```
+
+### Version Enforcement
+
+- All requests must specify a version using one of the methods above.
+- Requests without a version will receive a **400 Bad Request** response.
+- The error message will provide guidance on how to specify a version.
+
+### Current API Version
+
+- The current API version is `1.0` (represented as `v1` in the URL path).
+
 ## Rate Limiting
 
 The API implements a progressive rate limiting system to prevent spam and abuse:
@@ -65,13 +101,13 @@ The API implements a progressive rate limiting system to prevent spam and abuse:
 - First-time usage has no rate limiting
 - Each subsequent usage increases the timeout period by 1 hour
 - For example:
-  - First submission: No waiting period
-  - Second submission: 1 hour waiting period
-  - Third submission: 2 hour waiting period
-  - Fourth submission: 3 hour waiting period
+    - First submission: No waiting period
+    - Second submission: 1 hour waiting period
+    - Third submission: 2 hour waiting period
+    - Fourth submission: 3 hour waiting period
 - If a user attempts to submit while rate-limited, they receive a detailed error message with:
-  - The remaining wait time in a human-readable format
-  - Their current usage count
+    - The remaining wait time in a human-readable format
+    - Their current usage count
 - Rate limits are tracked independently for each SMTP configuration
 
 ## API Request Rate Limiting and Anti-Abuse
@@ -87,8 +123,8 @@ In addition to the email submission rate limiting, the API implements an advance
 ### Anti-Abuse Detection
 
 - Monitors traffic patterns for suspicious activity:
-  - **Burst Detection**: If an IP sends 20+ requests within a 5-second window, it triggers an automatic 1-hour block
-  - **Excessive Traffic**: If an IP sends 100+ requests within a 10-minute window, it triggers an automatic 6-hour block
+    - **Burst Detection**: If an IP sends 20+ requests within a 5-second window, it triggers an automatic 1-hour block
+    - **Excessive Traffic**: If an IP sends 100+ requests within a 10-minute window, it triggers an automatic 6-hour block
 - Blocked IPs receive HTTP 403 (Forbidden) with an explanation message
 
 ### Implementation Details
@@ -105,18 +141,18 @@ The security features are thoroughly tested with dedicated test suites:
 
 - **Unit Tests**:
 
-  - `IpProtectionServiceTests`: Validates IP blocking, expiration, and abuse detection
-  - `RateLimitingMiddlewareTests`: Tests request throttling and appropriate status codes
+    - `IpProtectionServiceTests`: Validates IP blocking, expiration, and abuse detection
+    - `RateLimitingMiddlewareTests`: Tests request throttling and appropriate status codes
 
 - **Integration Tests**:
 
-  - `SecurityHeadersTests`: Ensures proper security headers are set for all responses
-  - `RateLimitingIntegrationTests`: End-to-end testing of rate limiting with real HTTP requests
-  - `IpSpoofingTests`: Tests detection and blocking of IP spoofing attempts
+    - `SecurityHeadersTests`: Ensures proper security headers are set for all responses
+    - `RateLimitingIntegrationTests`: End-to-end testing of rate limiting with real HTTP requests
+    - `IpSpoofingTests`: Tests detection and blocking of IP spoofing attempts
 
 - **Performance and Concurrency Tests**:
-  - `RateLimitingPerformanceTests`: Measures the performance impact of rate limiting
-  - `IpProtectionServiceConcurrencyTests`: Validates thread safety under high concurrent load
+    - `RateLimitingPerformanceTests`: Measures the performance impact of rate limiting
+    - `IpProtectionServiceConcurrencyTests`: Validates thread safety under high concurrent load
 
 These tests ensure that the security features work correctly under various conditions, including:
 
@@ -230,22 +266,22 @@ GET /api/email/configs
 
 ```json
 [
-  {
-    "Index": 1,
-    "Host": "smtp.example.com",
-    "Port": 465,
-    "Email": "contact@example.com",
-    "TestEmail": "test@example.com",
-    "Description": "Contact email for example.com website"
-  },
-  {
-    "Index": 2,
-    "Host": "smtp.example.com",
-    "Port": 587,
-    "Email": "contact-second@example.com",
-    "TestEmail": "test-second@example.com",
-    "Description": "Contact email for example.com website seconde"
-  }
+    {
+        "Index": 1,
+        "Host": "smtp.example.com",
+        "Port": 465,
+        "Email": "contact@example.com",
+        "TestEmail": "test@example.com",
+        "Description": "Contact email for example.com website"
+    },
+    {
+        "Index": 2,
+        "Host": "smtp.example.com",
+        "Port": 587,
+        "Email": "contact-second@example.com",
+        "TestEmail": "test-second@example.com",
+        "Description": "Contact email for example.com website seconde"
+    }
 ]
 ```
 
