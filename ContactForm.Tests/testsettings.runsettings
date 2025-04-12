@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <RunConfiguration>
+    <!-- ENVIRONNEMENT VARIABLE -->
+    <EnvironmentVariables>
+        <SMTP_1_PASSWORD>test-password-1</SMTP_1_PASSWORD>
+        <SMTP_2_PASSWORD>test-password-2</SMTP_2_PASSWORD>
+        <SMTP_1_PASSWORD_TEST>test-passwod-1-test</SMTP_1_PASSWORD_TEST>
+        <SMTP_2_PASSWORD_TEST>test-password-2-test</SMTP_2_PASSWORD_TEST>
+    </EnvironmentVariables>
+  </RunConfiguration>
+</RunSettings>

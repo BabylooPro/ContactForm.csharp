@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Asp.Versioning;
+using Asp.Versioning.ApiExplorer;
 using ContactForm.MinimalAPI.Interfaces;
 using ContactForm.MinimalAPI.Middleware;
 using ContactForm.MinimalAPI.Models;
@@ -12,7 +14,9 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ContactForm.Tests")]
 
@@ -100,7 +104,7 @@ namespace ContactForm.MinimalAPI
             });
 
             // ADDING JSON OPTIONS
-            services.Configure<JsonOptions>(options =>
+            services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
             {
                 options.SerializerOptions.PropertyNamingPolicy = null;
             });
@@ -112,24 +116,43 @@ namespace ContactForm.MinimalAPI
             services.AddScoped<ISmtpClientWrapper, SmtpClientWrapper>();
             services.AddScoped<IEmailTrackingService, EmailTrackingService>();
             services.AddScoped<IEmailTemplateService, EmailTemplateService>();
-            
+
             // REGISTER IP PROTECTION SERVICES
             services.AddSingleton<IIpProtectionService, IpProtectionService>();
 
             // ADDING CONTROLLER SUPPORT
             services.AddControllers();
 
+            // ADDING API VERSINNING SUPPORT
+            services.AddApiVersioning(options =>
+            {
+                // DEFAULT VERSION
+                options.DefaultApiVersion = new ApiVersion(1, 0);
+                options.AssumeDefaultVersionWhenUnspecified = false;
+                options.ReportApiVersions = true;
+
+                options.ApiVersionReader = ApiVersionReader.Combine(
+                    new UrlSegmentApiVersionReader(), // URL PATH VERSIONING - /api/v1/controller
+                    new QueryStringApiVersionReader("api-version"), // QUERY STRING VERSIONING - ?api-version=1.0
+                    new HeaderApiVersionReader("X-Version") // HEADER VERSIONING - X-Version: 1.0 
+                );
+            }).AddApiExplorer(options =>
+            {
+                // FORMAT VERSION AS 'v'MAJOR[.MINOR][-STATUS]
+                options.GroupNameFormat = "'v'VVV";
+                options.SubstituteApiVersionInUrl = true;
+            });
+
             // ADDING SWAGGER
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo
-                {
-                    Title = "Contact Form API",
-                    Version = "v1",
-                    Description = "An API for handling contact form submissions"
-                });
+                // ADD SWAGGER SUPPORT FOR MULTIPLE API VERSIONS
+                c.OperationFilter<SwaggerDefaultValuesOperationFilter>();
             });
+
+            // CONFIGURE SWAGGER FOR VERSIONING
+            services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
 
             // ADDING LAMBDA SUPPORT
             services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
@@ -140,7 +163,8 @@ namespace ContactForm.MinimalAPI
             // CONFIGURING MIDDLEWARE
             app.UseMiddleware<ErrorHandlingMiddleware>();
             app.UseRateLimiting();
-            
+            app.UseApiVersionCheck(); // API VERSION CHECK MIDDLEWARE
+
             // ADD SECURITY HEADERS
             app.Use(async (context, next) =>
             {
@@ -150,21 +174,28 @@ namespace ContactForm.MinimalAPI
                 context.Response.Headers.XXSSProtection = "1; mode=block";
                 context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
                 context.Response.Headers.ContentSecurityPolicy = "default-src 'self'";
-                
                 await next();
             });
-            
             app.UseCors();
             app.UseRouting();
             app.UseAuthorization();
             app.UseHttpsRedirection();
 
+            // RETRIEVE API VERSION DESCRIPTION PROVIDER FROM SERVICE PROVIDER
+            var apiVersionDescriptionProvider = app.ApplicationServices.GetRequiredService<IApiVersionDescriptionProvider>();
+
             // ADDING SWAGGER UI
             app.UseSwagger();
-            app.UseSwaggerUI(c =>
+            app.UseSwaggerUI(options =>
             {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Contact Form API v1");
-                c.RoutePrefix = string.Empty; // SERVES SWAGGER UI AT THE ROOT URL
+                foreach (var description in apiVersionDescriptionProvider.ApiVersionDescriptions)
+                {
+                    options.SwaggerEndpoint(
+                        $"/swagger/{description.GroupName}/swagger.json",
+                        $"Contact Form API {description.GroupName.ToUpperInvariant()}"
+                    );
+                }
+                options.RoutePrefix = string.Empty; // SERVES SWAGGER UI AT THE ROOT URL
             });
 
             // CONFIGURE ENDPOINT ROUTE FOR CONTROLLERS

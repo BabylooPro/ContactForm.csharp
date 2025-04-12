@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using Asp.Versioning;
 using ContactForm.MinimalAPI.Interfaces;
 using ContactForm.MinimalAPI.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +12,9 @@ namespace ContactForm.MinimalAPI.Controllers
 {
     // CONTROLLER FOR SENDING EMAILS (POST)
     [ApiController]
-    [Route("api/[controller]")] // ROUTE: api/email
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/[controller]")] // ROUTE: api/v1/email
+    [Route("api/[controller]")]
     public class EmailController : ControllerBase
     {
         // DEPENDENCY INJECTION
