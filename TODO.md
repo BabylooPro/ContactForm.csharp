@@ -2,11 +2,15 @@
 
 **_Bugs to fix_**
 
+- [ ] **fix:** clarify and handle ambiguous API version (when both query string and header are present)
+    - Goal: avoid `Requested API version is ambiguous` warning
+    - Idea: either prioritize one version source (e.g. query > header), or explicitly reject multiple version definitions with a custom response
+
 **_New features to add_**
 
 - [ ] **add:** unit or integration test to ensure all critical environment variables (e.g. `SMTP_2_PASSWORD`) are properly initialized before the application starts
-  - Goal: avoid runtime errors like `System.InvalidOperationException: The following environment variables are missing or empty`
-  - Idea: mock the environment or use `Environment.SetEnvironmentVariable` in tests to simulate missing/valid scenarios
+    - Goal: avoid runtime errors like `System.InvalidOperationException: The following environment variables are missing or empty`
+    - Idea: mock the environment or use `Environment.SetEnvironmentVariable` in tests to simulate missing/valid scenarios
 - [ ] **add:** system of catch all email service
 
 ---
