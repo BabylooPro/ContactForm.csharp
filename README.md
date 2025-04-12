@@ -41,24 +41,24 @@ The project includes a comprehensive test suite in the `ContactForm.Tests` proje
 
 - **Unit Tests**:
 
-  - `ModelsTests`: Validates data models and their validation rules
-  - `ServicesTests`: Tests individual services in isolation with mocked dependencies
-    - `EmailServiceTests`: Email generation and sending functionality
-    - `EmailTrackingServiceTests`: Rate limiting and usage tracking
-    - `IpProtectionServiceTests`: IP blocking, expiration, and abuse detection
-    - `RateLimitingMiddlewareTests`: Request throttling, IP blocking, and rate limit checks
-  - `ControllersTests`: Ensures API endpoints function correctly with mocked services
+    - `ModelsTests`: Validates data models and their validation rules
+    - `ServicesTests`: Tests individual services in isolation with mocked dependencies
+        - `EmailServiceTests`: Email generation and sending functionality
+        - `EmailTrackingServiceTests`: Rate limiting and usage tracking
+        - `IpProtectionServiceTests`: IP blocking, expiration, and abuse detection
+        - `RateLimitingMiddlewareTests`: Request throttling, IP blocking, and rate limit checks
+    - `ControllersTests`: Ensures API endpoints function correctly with mocked services
 
 - **Integration Tests**:
 
-  - `IntegrationTests`: End-to-end tests using `ApplicationFactory` to simulate real API interactions
-  - `SecurityHeadersTests`: Validates security headers and CORS configurations across requests
-  - `RateLimitingIntegrationTests`: Tests rate limiting functionality with real HTTP requests
-  - `IpSpoofingTests`: Detects and blocks suspicious IP spoofing attempts
+    - `IntegrationTests`: End-to-end tests using `ApplicationFactory` to simulate real API interactions
+    - `SecurityHeadersTests`: Validates security headers and CORS configurations across requests
+    - `RateLimitingIntegrationTests`: Tests rate limiting functionality with real HTTP requests
+    - `IpSpoofingTests`: Detects and blocks suspicious IP spoofing attempts
 
 - **Performance and Concurrency Tests**:
-  - `RateLimitingPerformanceTests`: Measures overhead of rate limiting middleware
-  - `IpProtectionServiceConcurrencyTests`: Validates thread safety under concurrent traffic
+    - `RateLimitingPerformanceTests`: Measures overhead of rate limiting middleware
+    - `IpProtectionServiceConcurrencyTests`: Validates thread safety under concurrent traffic
 
 The test project uses xUnit and ASPNET Core testing framework for thorough testing coverage.
 
@@ -70,10 +70,19 @@ dotnet test
 
 ## API Endpoints
 
-- `POST /api/email/{smtpId}` - Send an email using specified SMTP configuration
-- `POST /api/email/{smtpId}/test` - Send a test email using test email address
-- `GET /api/email/configs` - Get all available SMTP configurations
+- `POST /api/v1/email/{smtpId}` - Send an email using specified SMTP configuration
+- `POST /api/v1/email/{smtpId}/test` - Send a test email using test email address
+- `GET /api/v1/email/configs` - Get all available SMTP configurations
+- `GET /api/v{version}/versiontest` - Test v1 and v2 versioning
 - `GET /test` - Test if the API is running
+
+## Api Versioning
+
+The API supports 3 methods of versioning
+
+1. **URL Path**: Using `/api/v1/resource` format (recommended)
+2. **Query String**: Using `?api-version=1.0` parameter
+3. **Header**: Using `X-Version: 1.0` header
 
 ## Rate Limiting
 
@@ -91,12 +100,12 @@ The API implements a dual-layer rate limiting system to prevent spam and abuse:
 
 - IP-based rate limiting with 10 requests per minute per IP
 - Advanced traffic pattern analysis to detect abuse:
-  - Burst detection (20+ requests in 5 seconds) triggers automatic 1-hour block
-  - Excessive requests (100+ in 10 minutes) triggers automatic 6-hour block
+    - Burst detection (20+ requests in 5 seconds) triggers automatic 1-hour block
+    - Excessive requests (100+ in 10 minutes) triggers automatic 6-hour block
 - In-memory IP tracking with automatic cleanup
 - Returns appropriate HTTP status codes:
-  - 429 Too Many Requests for rate limiting
-  - 403 Forbidden for blocked IPs
+    - 429 Too Many Requests for rate limiting
+    - 403 Forbidden for blocked IPs
 - No persistent IP storage - data is cleared on application restart
 
 ## Documentation
@@ -272,7 +281,7 @@ For manual deployment:
 Send an email via the API:
 
 ```http
-POST /api/email/1
+POST /api/v1/email/1
 Content-Type: application/json
 
 {
