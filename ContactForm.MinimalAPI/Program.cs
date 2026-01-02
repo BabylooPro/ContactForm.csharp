@@ -46,6 +46,11 @@ namespace ContactForm.MinimalAPI
                 Console.Error.WriteLine(ex.Message);
                 Environment.Exit(1);
             }
+            catch (InvalidOperationException ex)
+            {
+                Console.Error.WriteLine(ex.Message);
+                Environment.Exit(1);
+            }
         }
 
         public static void ConfigureServices(
@@ -56,16 +61,8 @@ namespace ContactForm.MinimalAPI
             // LOADING ENVIRONMENT VARIABLES
             DotEnv.Load();
 
-            // GET SMTP CONFIGURATIONS FROM APPSETTINGS
-            var config = builder
-                .Configuration.GetSection("SmtpSettings:Configurations")
-                .Get<List<SmtpConfig>>();
-            if (config == null)
-            {
-                throw new InvalidOperationException(
-                    "No SMTP configurations found in appsettings.json"
-                );
-            }
+            // GET SMTP CONFIGURATIONS FROM ENVIRONMENT VARIABLE
+            var config = Utilities.EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
 
             // DYNAMICALLY CHECK FOR MISSING SMTP PASSWORD VARIABLES
             var missingVariables = config
@@ -76,7 +73,11 @@ namespace ContactForm.MinimalAPI
             if (missingVariables.Count > 0)
             {
                 throw new InvalidOperationException(
-                    $"The following environment variables are missing or empty: {string.Join(", ", missingVariables)}"
+                    "Missing required SMTP password environment variables:" + Environment.NewLine +
+                    $"- {string.Join(Environment.NewLine + "- ", missingVariables)}" + Environment.NewLine + Environment.NewLine +
+                    "How to fix:" + Environment.NewLine +
+                    "- Define each variable before starting the app (launchSettings.json, .env, or OS environment)" + Environment.NewLine +
+                    "- Restart the process after changing environment variables"
                 );
             }
 
@@ -110,7 +111,7 @@ namespace ContactForm.MinimalAPI
             });
 
             // CONFIGURE SERVICES
-            services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
+            Utilities.EnvironmentUtils.ConfigureSmtpSettings(services, config);
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<ISmtpTestService, SmtpTestService>();
             services.AddScoped<ISmtpClientWrapper, SmtpClientWrapper>();

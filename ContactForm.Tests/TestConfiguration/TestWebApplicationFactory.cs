@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ContactForm.MinimalAPI;
 using ContactForm.MinimalAPI.Interfaces;
 using ContactForm.MinimalAPI.Models;
@@ -13,33 +14,38 @@ namespace ContactForm.Tests.TestConfiguration
             // ENSURE ENVIRONNEMENT IS SET TO TESTING
             builder.UseEnvironment("Testing");
 
-            builder.ConfigureAppConfiguration((context, config) =>
+            // SET SMTP CONFIGURATIONS FROM ENVIRONMENT VARIABLE
+            var testConfigurations = new List<SmtpConfig>
             {
-                // TEST CONFIG WITH SAMPLE SMTP SETTINGS
-                var inMemorySettings = new Dictionary<string, string>
+                new()
                 {
-                    // INDEX 1
-                    {"SmtpSettings:Configurations:0:Index", "1"},
-                    {"SmtpSettings:Configurations:0:Host", "smtp.example.com"},
-                    {"SmtpSettings:Configurations:0:Email", "test1@example.com"},
-                    {"SmtpSettings:Configurations:0:TestEmail", "test1test@example.com"},
-                    {"SmtpSettings:Configurations:0:Port", "465"},
-                    {"SmtpSettings:Configurations:0:Description", "test description"},
+                    Index = 1,
+                    Host = "smtp.example.com",
+                    Email = "test1@example.com",
+                    TestEmail = "test1test@example.com",
+                    Port = 465,
+                    Description = "test description"
+                },
+                new()
+                {
+                    Index = 2,
+                    Host = "smtp.example.com",
+                    Email = "test2@example.com",
+                    TestEmail = "test2test@example.com",
+                    Port = 587,
+                    Description = "test description"
+                }
+            };
 
-                    // INDEX 2
-                    {"SmtpSettings:Configurations:1:Index", "2"},
-                    {"SmtpSettings:Configurations:1:Host", "smtp.example.com"},
-                    {"SmtpSettings:Configurations:1:Email", "test2@example.com"},
-                    {"SmtpSettings:Configurations:1:TestEmail", "test2test@example.com"},
-                    {"SmtpSettings:Configurations:1:Port", "587"},
-                    {"SmtpSettings:Configurations:1:Description", "test description"},
-
-                    // OTHER
-                    {"SmtpSettings:ReceptionEmail", "reception@example.com"},
-                };
-
-                config.AddInMemoryCollection(inMemorySettings!);
-            });
+            // SETTING ENVIRONMENT VARIABLES FOR TESTING
+            var smtpConfigurationsJson = JsonSerializer.Serialize(testConfigurations);
+            Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", smtpConfigurationsJson);
+            Environment.SetEnvironmentVariable("SMTP_1_PASSWORD", "test-password-1");
+            Environment.SetEnvironmentVariable("SMTP_1_PASSWORD_TEST", "test-password-1-test");
+            Environment.SetEnvironmentVariable("SMTP_2_PASSWORD", "test-password-2");
+            Environment.SetEnvironmentVariable("SMTP_2_PASSWORD_TEST", "test-password-2-test");
+            Environment.SetEnvironmentVariable("SMTP_RECEPTION_EMAIL", "reception@example.com");
+            Environment.SetEnvironmentVariable("SMTP_CATCHALL_EMAIL", "catchall@example.com");
 
             builder.ConfigureServices(services =>
             {

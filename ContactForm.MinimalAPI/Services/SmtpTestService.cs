@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ContactForm.MinimalAPI.Interfaces;
 using ContactForm.MinimalAPI.Models;
+using ContactForm.MinimalAPI.Utilities;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,24 +20,14 @@ namespace ContactForm.MinimalAPI.Services
         private readonly List<SmtpConfig> _smtpConfigs;
 
         // CONSTRUCTOR
-        public SmtpTestService(
-            ILogger<SmtpTestService> logger,
-            IServiceProvider serviceProvider,
-            IConfiguration configuration
-        )
+        public SmtpTestService(ILogger<SmtpTestService> logger, IServiceProvider serviceProvider)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _serviceProvider =
                 serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
 
-            var configs = configuration
-                .GetSection("SmtpSettings:Configurations")
-                .Get<List<SmtpConfig>>();
-            _smtpConfigs =
-                configs
-                ?? throw new InvalidOperationException(
-                    "Failed to load SMTP configurations from settings"
-                );
+            // LOAD SMTP CONFIGURATIONS FROM ENVIRONMENT VARIABLE
+            _smtpConfigs = EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
         }
 
         // TEST SMTP CONNECTIONS

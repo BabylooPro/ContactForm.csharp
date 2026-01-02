@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ContactForm.MinimalAPI;
 using ContactForm.MinimalAPI.Interfaces;
 using ContactForm.MinimalAPI.Models;
@@ -18,6 +19,26 @@ namespace ContactForm.Tests.IntegrationTests
         // CONFIGURING WEB HOST
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            // SET SMTP CONFIGURATIONS FROM ENVIRONMENT VARIABLE FOR TESTING
+            var testConfigurations = new List<SmtpConfig>
+            {
+                new()
+                {
+                    Host = "smtp.hostinger.com",
+                    Port = 465,
+                    Email = "test@example.com",
+                    Description = "Test SMTP",
+                    Index = 0,
+                },
+            };
+
+            // SETTING ENVIRONMENT VARIABLES FOR TESTING
+            var smtpConfigurationsJson = JsonSerializer.Serialize(testConfigurations);
+            Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", smtpConfigurationsJson);
+            Environment.SetEnvironmentVariable("SMTP_0_PASSWORD", "test-password");
+            Environment.SetEnvironmentVariable("SMTP_RECEPTION_EMAIL", "reception@example.com");
+            Environment.SetEnvironmentVariable("SMTP_CATCHALL_EMAIL", "catchall@example.com");
+
             // REMOVING EMAIL SERVICE AND ADDING MOCKED EMAIL SERVICE
             builder.ConfigureServices(services =>
             {
@@ -47,6 +68,7 @@ namespace ContactForm.Tests.IntegrationTests
                         },
                     },
                     ReceptionEmail = "reception@example.com",
+                    CatchAllEmail = "catchall@example.com",
                 };
 
                 // CONFIGURING TEST SMTP SETTINGS
@@ -54,6 +76,7 @@ namespace ContactForm.Tests.IntegrationTests
                 {
                     options.Configurations = smtpSettings.Configurations;
                     options.ReceptionEmail = smtpSettings.ReceptionEmail;
+                    options.CatchAllEmail = smtpSettings.CatchAllEmail;
                 });
 
                 // REGISTER TEST EMAIL SERVICE
