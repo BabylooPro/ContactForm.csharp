@@ -555,6 +555,7 @@ jobs:
 
                   # BUILD ENVIRONMENT VARIABLES STRING
                   ENV_VARS="ASPNETCORE_ENVIRONMENT=${{ env.ASPNETCORE_ENVIRONMENT }};LAMBDA_DEBUG=${{ env.LAMBDA_DEBUG }};${{ env.DEFAULT_PROJECT_ENV }}"
+                  ENV_VARS="${ENV_VARS// /}"
 
                   dotnet lambda deploy-function ${{ env.FUNCTION_NAME }} \
                     --region ${{ env.AWS_REGION }} \
