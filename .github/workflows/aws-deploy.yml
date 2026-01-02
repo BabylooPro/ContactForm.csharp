@@ -552,18 +552,11 @@ jobs:
 
                   # DEPLOYING WITH THE RETRIEVED ROLE ARN
                   echo "DEPLOYING WITH AWS CREDENTIALS..."
+                  echo "NOTE: ENVIRONMENT VARIABLES WILL BE SET IN FOLLOWING STEP VIA AWS CLI"
+                  echo "THIS AVOIDS ISSUES WITH SPECIAL CHARACTERS IN JSON VALUES (EXAMPLE: SMTP_CONFIGURATIONS)"
 
-                  # BUILD ENVIRONMENT VARIABLES STRING
-                  # REMOVE NEWLINES AND NORMALIZE WHITESPACE FROM DEFAULT_PROJECT_ENV
-                  CLEANED_ENV=$(echo -n "${{ env.DEFAULT_PROJECT_ENV }}" | tr -d '\n\r' | sed 's/[[:space:]]*;[[:space:]]*/;/g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-                  ENV_VARS="ASPNETCORE_ENVIRONMENT=${{ env.ASPNETCORE_ENVIRONMENT }};LAMBDA_DEBUG=${{ env.LAMBDA_DEBUG }}"
-                  if [ -n "$CLEANED_ENV" ]; then
-                    ENV_VARS="${ENV_VARS};${CLEANED_ENV}"
-                  fi
-
-                  # REMOVE ANY REMAINING NEWLINES AND NORMALIZE
-                  ENV_VARS=$(echo -n "$ENV_VARS" | tr -d '\n\r' | sed 's/[[:space:]]*;[[:space:]]*/;/g')
-
+                  # DEPLOY WITHOUT ENVIRONMENT VARIABLES
+                  # ENVIRONMENT VARIABLES ARE SET IN NEXT STEP VIA AWS CLI WHICH HANDLES JSON PROPERLY
                   dotnet lambda deploy-function ${{ env.FUNCTION_NAME }} \
                     --region ${{ env.AWS_REGION }} \
                     --function-role "${{ env.LAMBDA_ROLE_ARN }}" \
@@ -571,8 +564,7 @@ jobs:
                     --package ${{ env.LAMBDA_PACKAGE_PATH }} \
                     --function-memory-size ${{ env.LAMBDA_MEMORY }} \
                     --function-timeout ${{ env.LAMBDA_TIMEOUT }} \
-                    --function-runtime dotnet8 \
-                    --function-environment-variables "$ENV_VARS"
+                    --function-runtime dotnet8
 
             - name: Ensure environment variables are set with AWS CLI
               run: |
@@ -611,7 +603,8 @@ jobs:
                   }'
 
                   # PARSE SMTP VARIABLES FROM DEFAULT_PROJECT_ENV
-                  IFS=';' read -ra ENV_VARS_ARRAY <<< "${{ env.DEFAULT_PROJECT_ENV }}"
+                  # READ FROM ENVIRONMENT VARIABLE DIRECTLY TO AVOID GITHUB ACTIONS EXPANSION ISSUES
+                  IFS=';' read -ra ENV_VARS_ARRAY <<< "${DEFAULT_PROJECT_ENV:-}"
                   for VAR in "${ENV_VARS_ARRAY[@]}"; do
                     if [ -n "$VAR" ]; then
                       VAR=$(echo "$VAR" | xargs) # Trim whitespace
