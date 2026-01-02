@@ -549,6 +549,10 @@ jobs:
 
                   # DEPLOYING WITH THE RETRIEVED ROLE ARN
                   echo "DEPLOYING WITH AWS CREDENTIALS..."
+
+                  # BUILD ENVIRONMENT VARIABLES STRING
+                  ENV_VARS="ASPNETCORE_ENVIRONMENT=${{ env.ASPNETCORE_ENVIRONMENT }};LAMBDA_DEBUG=${{ env.LAMBDA_DEBUG }};${{ env.DEFAULT_PROJECT_ENV }}"
+
                   dotnet lambda deploy-function ${{ env.FUNCTION_NAME }} \
                     --region ${{ env.AWS_REGION }} \
                     --function-role "${{ env.LAMBDA_ROLE_ARN }}" \
@@ -557,7 +561,7 @@ jobs:
                     --function-memory-size ${{ env.LAMBDA_MEMORY }} \
                     --function-timeout ${{ env.LAMBDA_TIMEOUT }} \
                     --function-runtime dotnet8 \
-                    --function-environment-variables "ASPNETCORE_ENVIRONMENT=${{ env.ASPNETCORE_ENVIRONMENT }};LAMBDA_DEBUG=${{ env.LAMBDA_DEBUG }};${{ env.DEFAULT_PROJECT_ENV }}"
+                    --function-environment-variables "$ENV_VARS"
 
             - name: Ensure environment variables are set with AWS CLI
               run: |
