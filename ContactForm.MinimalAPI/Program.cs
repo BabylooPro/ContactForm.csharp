@@ -131,6 +131,7 @@ namespace ContactForm.MinimalAPI
                 options.DefaultApiVersion = new ApiVersion(1, 0);
                 options.AssumeDefaultVersionWhenUnspecified = false;
                 options.ReportApiVersions = true;
+                options.UnsupportedApiVersionStatusCode = 404;
 
                 // CUSTOM API VERSION READER PRIORITIZING QUERY STRING
                 options.ApiVersionReader = new Utilities.PrioritizedApiVersionReader();

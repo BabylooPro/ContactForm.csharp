@@ -101,8 +101,48 @@ namespace ContactForm.Tests.ControllersTests
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
 
-        // TODO: TEST FOR GET CONFIGS ENDPOINT WITH INVALID PATH VERSION RETURNS NOT FOUND
-        // TODO: TEST FOR GET CONFIGS ENDPOINT WITH INVALID QUERY STRING VERSION RETURNS NOT FOUND
-        // TODO: TEST FOR GET CONFIGS ENDPOINT WITH INVALID HEADER VERSION RETURNS NOT FOUND
+        // TEST FOR GET CONFIGS ENDPOINT WITH INVALID PATH VERSION RETURNS NOT FOUND
+        [Fact]
+        public async Task GetConfigs_WithInvalidPathVersion_ReturnsNotFound()
+        {
+            // ARRANGE - CREATE A CLIENT TO MAKE HTTP REQUEST
+            var client = _factory.CreateClient();
+
+            // ACT - SEND A GET REQUEST TO CONFIGS ENDPOINT WITH INVALID PATH VERSION
+            var response = await client.GetAsync("/api/v2.0/email/configs");
+
+            // ASSERT - CHECK RESPONSE STATUS CODE
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+
+        // TEST FOR GET CONFIGS ENDPOINT WITH INVALID QUERY STRING VERSION RETURNS NOT FOUND
+        [Fact]
+        public async Task GetConfigs_WithInvalidQueryStringVersion_ReturnsNotFound()
+        {
+            // ARRANGE - CREATE A CLIENT TO MAKE HTTP REQUEST
+            var client = _factory.CreateClient();
+
+            // ACT - SEND A GET REQUEST TO CONFIGS ENDPOINT WITH INVALID QUERY STRING VERSION
+            var response = await client.GetAsync("/api/email/configs?api-version=2.0");
+
+            // ASSERT - CHECK RESPONSE STATUS CODE
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+
+        // TEST FOR GET CONFIGS ENDPOINT WITH INVALID HEADER VERSION RETURNS NOT FOUND
+        [Fact]
+        public async Task GetConfigs_WithInvalidHeaderVersion_ReturnsNotFound()
+        {
+            // ARRANGE - CREATE A CLIENT TO MAKE HTTP REQUEST
+            var client = _factory.CreateClient();
+
+            // ACT - SEND A GET REQUEST TO CONFIGS ENDPOINT WITH INVALID HEADER VERSION
+            var request = new HttpRequestMessage(HttpMethod.Get, "api/email/configs");
+            request.Headers.Add("X-Version", "2.0");
+
+            // ASSERT - CHECK RESPONSE STATUS CODE
+            var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
     }
 }
