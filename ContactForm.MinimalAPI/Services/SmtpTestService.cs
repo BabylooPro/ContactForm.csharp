@@ -23,8 +23,7 @@ namespace ContactForm.MinimalAPI.Services
         public SmtpTestService(ILogger<SmtpTestService> logger, IServiceProvider serviceProvider)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _serviceProvider =
-                serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
 
             // LOAD SMTP CONFIGURATIONS FROM ENVIRONMENT VARIABLE
             _smtpConfigs = EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
@@ -95,15 +94,16 @@ namespace ContactForm.MinimalAPI.Services
                 {
                     await loadingTask;
                 }
-                catch { }
+                catch {
+                    // IGNORE ERROR
+                }
 
                 Console.Write("\r".PadRight(50) + "\r");
 
                 results.Sort(
                     (a, b) =>
                     {
-                        if (a.success == b.success)
-                            return a.duration.CompareTo(b.duration);
+                        if (a.success == b.success) return a.duration.CompareTo(b.duration);
                         return a.success ? -1 : 1;
                     }
                 );
@@ -142,62 +142,45 @@ namespace ContactForm.MinimalAPI.Services
                 {
                     await loadingTask;
                 }
-                catch { }
+                catch
+                {
+                    // IGNORE ERROR
+                }
                 Console.Write("\r".PadRight(50) + "\r"); // CLEAR LOADING LINE
             }
         }
 
         // METHODE TO TEST AN SMPT CONNECTIONS
-        private async Task TestSmtpConnection(
-            SmtpConfig smtp,
-            ISmtpClientWrapper smtpClient,
-            List<(bool success, string message, long duration)> results,
-            bool isTestEmail
-        )
+        private async Task TestSmtpConnection(SmtpConfig smtp, ISmtpClientWrapper smtpClient, List<(bool success, string message, long duration)> results, bool isTestEmail)
         {
             var testStopwatch = System.Diagnostics.Stopwatch.StartNew();
             var emailToUse = isTestEmail ? smtp.TestEmail : smtp.Email;
             var emailType = isTestEmail ? "TEST" : "REGULAR";
-            var passwordVar = isTestEmail
-                ? $"SMTP_{smtp.Index}_PASSWORD_TEST"
-                : $"SMTP_{smtp.Index}_PASSWORD";
+            var passwordVar = isTestEmail ? $"SMTP_{smtp.Index}_PASSWORD_TEST" : $"SMTP_{smtp.Index}_PASSWORD";
 
             try
             {
                 // CONNECT TO SMTP
-                await smtpClient.ConnectWithTokenAsync(
-                    smtp.Host,
-                    smtp.Port,
-                    MailKit.Security.SecureSocketOptions.SslOnConnect,
-                    CancellationToken.None
-                );
+                await smtpClient.ConnectWithTokenAsync(smtp.Host, smtp.Port, MailKit.Security.SecureSocketOptions.SslOnConnect, CancellationToken.None);
 
                 // GET PASSWORD FROM ENVIRONMENT VARIABLE
                 var password = Environment.GetEnvironmentVariable(passwordVar);
                 if (string.IsNullOrEmpty(password))
                 {
-                    throw new InvalidOperationException(
-                        $"{passwordVar} environment variable is missing"
-                    );
+                    throw new InvalidOperationException($"{passwordVar} environment variable is missing");
                 }
 
                 // AUTHENTICATE WITH PASSWORD
-                await smtpClient.AuthenticateWithTokenAsync(
-                    emailToUse,
-                    password,
-                    CancellationToken.None
-                );
+                await smtpClient.AuthenticateWithTokenAsync(emailToUse, password, CancellationToken.None);
 
                 // DISCONNECT FROM SMTP
                 await smtpClient.DisconnectWithTokenAsync(true, CancellationToken.None);
                 testStopwatch.Stop();
-                results.Add(
-                    (
-                        true,
-                        $"SMTP_{smtp.Index} {emailType}: {smtp.Description} ({emailToUse})\nSMTP_{smtp.Index} {emailType} connection test: SUCCESS ({testStopwatch.ElapsedMilliseconds}ms)\n",
-                        testStopwatch.ElapsedMilliseconds
-                    )
-                );
+                results.Add((
+                    true,
+                    $"SMTP_{smtp.Index} {emailType}: {smtp.Description} ({emailToUse})\nSMTP_{smtp.Index} {emailType} connection test: SUCCESS ({testStopwatch.ElapsedMilliseconds}ms)\n",
+                    testStopwatch.ElapsedMilliseconds
+                ));
             }
             catch (Exception ex)
             {
@@ -220,38 +203,69 @@ namespace ContactForm.MinimalAPI.Services
                 // CREATE USER-FRIENDLY ERROR MESSAGE
                 string userFriendlyError = GetUserFriendlyErrorMessage(ex, smtp, emailToUse);
 
-                results.Add(
-                    (
-                        false,
-                        $"SMTP_{smtp.Index} {emailType}: {smtp.Description} ({emailToUse})\nSMTP_{smtp.Index} {emailType} connection test: FAILED ({testStopwatch.ElapsedMilliseconds}ms)\n Error: {userFriendlyError}\n",
-                        testStopwatch.ElapsedMilliseconds
-                    )
-                );
+                results.Add((
+                    false,
+                    $"SMTP_{smtp.Index} {emailType}: {smtp.Description} ({emailToUse})\nSMTP_{smtp.Index} {emailType} connection test: FAILED ({testStopwatch.ElapsedMilliseconds}ms)\n Error: {userFriendlyError}\n",
+                    testStopwatch.ElapsedMilliseconds
+                ));
 
                 // LOG DETAILED ERROR FOR DEBUGGING
-                _logger.LogDebug(
-                    ex,
-                    $"SMTP connection test failed for {emailToUse} on {smtp.Host}:{smtp.Port}"
-                );
+                _logger.LogDebug(ex, $"SMTP connection test failed for {emailToUse} on {smtp.Host}:{smtp.Port}");
             }
         }
 
         // GET USER-FRIENDLY ERROR MESSAGE BASED ON EXECPETION TYPE AND CONTENT
-        private string GetUserFriendlyErrorMessage(
-            Exception ex,
-            SmtpConfig config,
-            string emailAdress
-        )
+        private string GetUserFriendlyErrorMessage(Exception ex, SmtpConfig config, string emailAdress)
         {
             string exMessage = ex.Message;
 
-            // AUTHENTICATION FAILURE
+            // AUTHENTICATION FAILURE (535)
             if (exMessage.Contains("535") && exMessage.Contains("authentication failed"))
             {
                 return $"Authentication failed. Email address ({emailAdress}) or password incorrect. Password environment variable should be verified.";
             }
 
-            // TODO: ADD MORE EXCEPTION
+            // AUTHENTICATION FAILURE (GENERAL)
+            if (exMessage.Contains("authentication") || exMessage.Contains("535") || exMessage.Contains("530") || exMessage.Contains("534"))
+            {
+                return $"Authentication failed. Email address ({emailAdress}) or password incorrect. Verify credentials and password environment variable.";
+            }
+
+            // CONNECTION REFUSED OR TIMEOUT
+            if (ex is System.Net.Sockets.SocketException || exMessage.Contains("connection refused") || exMessage.Contains("timeout") || exMessage.Contains("timed out"))
+            {
+                return $"Connection failed to {config.Host}:{config.Port}. Check if host and port are correct, firewall settings, and network connectivity.";
+            }
+
+            // SSL/TLS CERTIFICATE ERRORS
+            if (exMessage.Contains("certificate") || exMessage.Contains("SSL") || exMessage.Contains("TLS") || exMessage.Contains("handshake"))
+            {
+                return $"SSL/TLS connection error. Verify SSL/TLS settings for {config.Host}:{config.Port}. Certificate validation may be required.";
+            }
+
+            // SERVICE NOT AVAILABLE
+            if (exMessage.Contains("service not available") || exMessage.Contains("550") || exMessage.Contains("421"))
+            {
+                return $"SMTP service not available on {config.Host}:{config.Port}. Server may be down or rejecting connections.";
+            }
+
+            // INVALID HOST OR PORT
+            if (exMessage.Contains("host") && (exMessage.Contains("invalid") || exMessage.Contains("not found") || exMessage.Contains("unreachable")))
+            {
+                return $"Invalid host or port configuration. Verify SMTP_{config.Index}_HOST and SMTP_{config.Index}_PORT environment variables.";
+            }
+
+            // NETWORK ERRORS
+            if (exMessage.Contains("network") || exMessage.Contains("unreachable") || exMessage.Contains("no route"))
+            {
+                return $"Network error connecting to {config.Host}:{config.Port}. Check network connectivity and DNS resolution.";
+            }
+
+            // MISSING ENVIRONMENT VARIABLE (ALREADY HANDLED IN CALLER, BUT ADD AS FALLBACK)
+            if (ex is InvalidOperationException && exMessage.Contains("environment variable"))
+            {
+                return exMessage;
+            }
 
             return $"{exMessage} - Server settings and network connection should be checked.";
         }
