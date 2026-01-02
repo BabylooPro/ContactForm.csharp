@@ -8,6 +8,14 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <RunSettingsFilePath>$(MSBuildProjectDirectory)/testsettings.runsettings</RunSettingsFilePath>
+    
+    <!-- COVERLET CONFIGURATION -->
+    <CollectCoverage>true</CollectCoverage>
+    <CoverletOutputFormat>cobertura,json,lcov</CoverletOutputFormat>
+    <CoverletOutput>$(MSBuildProjectDirectory)/TestResults/coverage</CoverletOutput>
+    <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
+    <Exclude>[*.Tests]*,[*.Test]*</Exclude>
+    <IncludeTestAssembly>false</IncludeTestAssembly>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,6 +26,10 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="coverlet.collector" Version="6.0.1">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.msbuild" Version="6.0.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
