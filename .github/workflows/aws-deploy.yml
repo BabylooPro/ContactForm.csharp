@@ -604,16 +604,23 @@ jobs:
 
                   # PARSE SMTP VARIABLES FROM DEFAULT_PROJECT_ENV
                   # READ FROM ENVIRONMENT VARIABLE DIRECTLY TO AVOID GITHUB ACTIONS EXPANSION ISSUES
+                  # USE SED TO TRIM WHITESPACE INSTEAD OF XARGS (XARGS CAN'T HANDLE QUOTES IN VALUES)
                   IFS=';' read -ra ENV_VARS_ARRAY <<< "${DEFAULT_PROJECT_ENV:-}"
                   for VAR in "${ENV_VARS_ARRAY[@]}"; do
                     if [ -n "$VAR" ]; then
-                      VAR=$(echo "$VAR" | xargs) # Trim whitespace
+                      # TRIM WHITESPACE USING SED (SAFER THAN XARGS FOR VALUES WITH QUOTES)
+                      VAR=$(echo "$VAR" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                       if [ -n "$VAR" ]; then
-                        KEY=$(echo "$VAR" | cut -d'=' -f1)
-                        VALUE=$(echo "$VAR" | cut -d'=' -f2-)
+                        # EXTRACT KEY (EVERYTHING BEFORE FIRST '=')
+                        KEY=$(echo "$VAR" | sed 's/=.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                        # EXTRACT VALUE (EVERYTHING AFTER FIRST '=')
+                        VALUE=$(echo "$VAR" | sed 's/^[^=]*=//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
                         
-                        # ADD TO THE JSON USING JQ
-                        ENV_VARS_JSON=$(echo "$ENV_VARS_JSON" | jq --arg key "$KEY" --arg value "$VALUE" '.Variables[$key] = $value')
+                        # SKIP IF KEY IS EMPTY
+                        if [ -n "$KEY" ]; then
+                          # ADD TO THE JSON USING JQ (JQ AUTOMATICALLY ESCAPES VALUES)
+                          ENV_VARS_JSON=$(echo "$ENV_VARS_JSON" | jq --arg key "$KEY" --arg value "$VALUE" '.Variables[$key] = $value')
+                        fi
                       fi
                     fi
                   done
