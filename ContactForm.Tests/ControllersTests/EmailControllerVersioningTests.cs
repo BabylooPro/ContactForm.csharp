@@ -85,6 +85,22 @@ namespace ContactForm.Tests.ControllersTests
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
 
+        // TEST FOR GET CONFIGS ENDPOINT WITH BOTH QUERY STRING AND HEADER VERSION - QUERY STRING TAKES PRIORITY
+        [Fact]
+        public async Task GetConfigs_WithBothQueryAndHeaderVersion_QueryStringTakesPriority()
+        {
+            // ARRANGE - CREATE A CLIENT TO MAKE HTTP REQUEST
+            var client = _factory.CreateClient();
+
+            // ACT - SEND A GET REQUEST WITH BOTH QUERY STRING AND HEADER VERSION
+            var request = new HttpRequestMessage(HttpMethod.Get, "api/email/configs?api-version=1.0");
+            request.Headers.Add("X-Version", "2.0");
+
+            // ASSERT - CHECK RESPONSE STATUS CODE - SHOULD SUCCEED USING QUERY STRING VERSION (1.0)
+            var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
         // TODO: TEST FOR GET CONFIGS ENDPOINT WITH INVALID PATH VERSION RETURNS NOT FOUND
         // TODO: TEST FOR GET CONFIGS ENDPOINT WITH INVALID QUERY STRING VERSION RETURNS NOT FOUND
         // TODO: TEST FOR GET CONFIGS ENDPOINT WITH INVALID HEADER VERSION RETURNS NOT FOUND

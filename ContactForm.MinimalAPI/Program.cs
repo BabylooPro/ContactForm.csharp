@@ -132,11 +132,8 @@ namespace ContactForm.MinimalAPI
                 options.AssumeDefaultVersionWhenUnspecified = false;
                 options.ReportApiVersions = true;
 
-                options.ApiVersionReader = ApiVersionReader.Combine(
-                    new UrlSegmentApiVersionReader(), // URL PATH VERSIONING - /api/v1/controller
-                    new QueryStringApiVersionReader("api-version"), // QUERY STRING VERSIONING - ?api-version=1.0
-                    new HeaderApiVersionReader("X-Version") // HEADER VERSIONING - X-Version: 1.0 
-                );
+                // CUSTOM API VERSION READER PRIORITIZING QUERY STRING
+                options.ApiVersionReader = new Utilities.PrioritizedApiVersionReader();
             }).AddApiExplorer(options =>
             {
                 // FORMAT VERSION AS 'v'MAJOR[.MINOR][-STATUS]
@@ -162,9 +159,9 @@ namespace ContactForm.MinimalAPI
         public static void ConfigureApp(IApplicationBuilder app)
         {
             // CONFIGURING MIDDLEWARE
+            app.UseApiVersionCheck();
             app.UseMiddleware<ErrorHandlingMiddleware>();
             app.UseRateLimiting();
-            app.UseApiVersionCheck(); // API VERSION CHECK MIDDLEWARE
 
             // ADD SECURITY HEADERS
             app.Use(async (context, next) =>

@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text.Json;
 
 namespace ContactForm.MinimalAPI.Middleware
@@ -19,6 +20,19 @@ namespace ContactForm.MinimalAPI.Middleware
                 bool hasQuery = context.Request.Query.ContainsKey("api-version");
                 bool hasHeader = context.Request.Headers.Keys.Any(k => k.Equals("X-Version", StringComparison.OrdinalIgnoreCase));
                 bool hasVersion = hasQuery || hasHeader;
+
+                // HANDLE AMBIGUOUS API VERSION: PRIORITIZE QUERY STRING OVER HEADER
+                if (hasQuery && hasHeader)
+                {
+                    Console.WriteLine($"[API WARNING] Ambiguous API version detected (both query string and header present). Prioritizing query string. Request: {context.Request.Method} {context.Request.Path}{context.Request.QueryString}");
+                    
+                    // REMOVE HEADER TO AVOID AMBIGUITY - QUERY STRING TAKES PRIORITY
+                    var headerKey = context.Request.Headers.Keys.FirstOrDefault(k => k.Equals("X-Version", StringComparison.OrdinalIgnoreCase));
+                    if (headerKey != null)
+                    {
+                        context.Request.Headers.Remove(headerKey);
+                    }
+                }
 
                 if (!hasVersion)
                 {

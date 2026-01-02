@@ -27,10 +27,20 @@ namespace ContactForm.Tests.TestConfiguration
             // SETTING ENVIRONMENT VARIABLES FOR TESTING
             var smtpConfigurationsJson = JsonSerializer.Serialize(testConfigurations);
             
-            // ONLY SET IF NOT ALREADY SET (ALLOWS TEST FACTORIES TO OVERRIDE)
-            if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SMTP_CONFIGURATIONS")))
+            // VALIDATE EXISTING VALUE - IF IT EXISTS BUT IS INVALID (NOT A JSON ARRAY), REPLACE IT
+            var existingValue = Environment.GetEnvironmentVariable("SMTP_CONFIGURATIONS");
+            if (string.IsNullOrWhiteSpace(existingValue))
             {
                 Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", smtpConfigurationsJson);
+            }
+            else
+            {
+                // CHECK IF EXISTING VALUE IS A VALID JSON ARRAY - IF NOT, REPLACE IT
+                var trimmedValue = existingValue.Trim();
+                if (!trimmedValue.StartsWith('['))
+                {
+                    Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", smtpConfigurationsJson);
+                }
             }
             if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SMTP_0_PASSWORD")))
             {
