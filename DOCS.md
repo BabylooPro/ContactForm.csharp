@@ -8,55 +8,63 @@ The ContactForm API is a RESTful web service designed to handle contact form sub
 
 ### Prerequisites
 
-- .NET 8.0 SDK or higher
-- SMTP server access for sending emails
+-   .NET 8.0 SDK or higher
+-   SMTP server access for sending emails
 
 ## Dependencies
 
-- Microsoft.AspNetCore (Web framework)
-- Microsoft.Extensions.Logging (Logging)
-- System.Net.Mail (Email functionality)
-- dotenv net (Environment variable loading)
-- AWS Lambda support libraries (for Lambda deployment)
-- Asp Versioning (API Versioning support)
+-   Microsoft.AspNetCore (Web framework)
+-   Microsoft.Extensions.Logging (Logging)
+-   System.Net.Mail (Email functionality)
+-   dotenv net (Environment variable loading)
+-   AWS Lambda support libraries (for Lambda deployment)
+-   Asp Versioning (API Versioning support)
 
 ### Configuration
 
-The API uses configuration from [appsettings.json](appsettings.json) and environment variables :
+The API uses configuration from [appsettings.json](appsettings.json) and environment variables.
 
-```json
-{
-    "SmtpSettings": {
-        "Configurations": [
-            {
-                "Index": 1,
-                "Host": "smtp.example.com",
-                "Port": 465,
-                "Email": "contact@example.com",
-                "TestEmail": "test@example.com",
-                "Description": "Contact email for example.com website"
-            },
-            {
-                "Index": 2,
-                "Host": "smtp.example.com",
-                "Port": 587,
-                "Email": "contact-second@example.com",
-                "TestEmail": "test-second@example.com",
-                "Description": "Contact email for example.com website seconde"
-            }
-        ],
-        "ReceptionEmail": "reception@example.com",
-        "CatchAllEmail": "catchallemail@example.com"
-    }
-}
-```
+**SMTP configurations are loaded from the `SMTP_CONFIGURATIONS` environment variable** (JSON array format) to allow dynamic configuration without modifying `appsettings.json`.
 
-Each SMTP configuration requires corresponding environment variables:
+#### Environment Variables
 
-- `SMTP_1_PASSWORD` for the password of the SMTP configuration with Index 1
-- `SMTP_1_PASSWORD_TEST` for the password of the SMTP configuration with Index 1 for test email
-- `SMTP_2_PASSWORD` for the password of the SMTP configuration with Index 2
-- `SMTP_2_PASSWORD_TEST` for the password of the SMTP configuration with Index 2 for test email
+**Required:**
+
+-   `SMTP_CONFIGURATIONS`: JSON array of SMTP configurations
+
+    **Multiline format (recommended (readable, but risky outside the .env))** - Use quotes for multiline values in your `.env` file:
+
+    ```
+    SMTP_CONFIGURATIONS="[
+      {
+        \"Index\": 1,
+        \"Host\": \"smtp.example.com\",
+        \"Port\": 465,
+        \"Email\": \"contact@example.com\",
+        \"TestEmail\": \"test@example.com\",
+        \"Description\": \"Contact email for example.com website\"
+      },
+      {
+        \"Index\": 2,
+        \"Host\": \"smtp.example.com\",
+        \"Port\": 587,
+        \"Email\": \"contact-second@example.com\",
+        \"TestEmail\": \"test-second@example.com\",
+        \"Description\": \"Contact email for example.com website seconde\"
+      }
+    ]"
+    ```
+
+    **Compact format (single line):**
+
+    ```
+    SMTP_CONFIGURATIONS=[{"Index":1,"Host":"smtp.example.com","Port":465,"Email":"contact@example.com","TestEmail":"test@example.com","Description":"Contact email for example.com website","Index":1},{"Index":2,"Host":"smtp.example.com","Port":587,"Email":"contact-second@example.com","TestEmail":"test-second@example.com","Description":"Contact email for example.com website seconde","Index":2}]
+    ```
+
+-   `SMTP_{INDEX}_PASSWORD`: Password for the SMTP configuration with the specified Index
+-   `SMTP_{INDEX}_PASSWORD_TEST`: Password for the test email of the SMTP configuration with the specified Index
+-   `SMTP_RECEPTION_EMAIL`: Default recipient email for testing (required)
+-   `SMTP_CATCHALL_EMAIL`: Fallback email for catching undeliverable messages (required)
 
 ## API Versioning
 
@@ -85,30 +93,30 @@ The API supports 3 methods of specifying the version:
 
 ### Version Enforcement
 
-- All requests must specify a version using one of the methods above.
-- Requests without a version will receive a **400 Bad Request** response.
-- The error message will provide guidance on how to specify a version.
+-   All requests must specify a version using one of the methods above.
+-   Requests without a version will receive a **400 Bad Request** response.
+-   The error message will provide guidance on how to specify a version.
 
 ### Current API Version
 
-- The current API version is `1.0` (represented as `v1` in the URL path).
+-   The current API version is `1.0` (represented as `v1` in the URL path).
 
 ## Rate Limiting
 
 The API implements a progressive rate limiting system to prevent spam and abuse:
 
-- Each sender email is tracked separately per SMTP configuration
-- First-time usage has no rate limiting
-- Each subsequent usage increases the timeout period by 1 hour
-- For example:
-    - First submission: No waiting period
-    - Second submission: 1 hour waiting period
-    - Third submission: 2 hour waiting period
-    - Fourth submission: 3 hour waiting period
-- If a user attempts to submit while rate-limited, they receive a detailed error message with:
-    - The remaining wait time in a human-readable format
-    - Their current usage count
-- Rate limits are tracked independently for each SMTP configuration
+-   Each sender email is tracked separately per SMTP configuration
+-   First-time usage has no rate limiting
+-   Each subsequent usage increases the timeout period by 1 hour
+-   For example:
+    -   First submission: No waiting period
+    -   Second submission: 1 hour waiting period
+    -   Third submission: 2 hour waiting period
+    -   Fourth submission: 3 hour waiting period
+-   If a user attempts to submit while rate-limited, they receive a detailed error message with:
+    -   The remaining wait time in a human-readable format
+    -   Their current usage count
+-   Rate limits are tracked independently for each SMTP configuration
 
 ## API Request Rate Limiting and Anti-Abuse
 
@@ -116,51 +124,51 @@ In addition to the email submission rate limiting, the API implements an advance
 
 ### Standard Rate Limiting
 
-- Each IP address is limited to 10 requests per minute
-- When exceeded, returns HTTP 429 (Too Many Requests) with a "Retry-After" header
-- Independent from the email submission rate limiting system
+-   Each IP address is limited to 10 requests per minute
+-   When exceeded, returns HTTP 429 (Too Many Requests) with a "Retry-After" header
+-   Independent from the email submission rate limiting system
 
 ### Anti-Abuse Detection
 
-- Monitors traffic patterns for suspicious activity:
-    - **Burst Detection**: If an IP sends 20+ requests within a 5-second window, it triggers an automatic 1-hour block
-    - **Excessive Traffic**: If an IP sends 100+ requests within a 10-minute window, it triggers an automatic 6-hour block
-- Blocked IPs receive HTTP 403 (Forbidden) with an explanation message
+-   Monitors traffic patterns for suspicious activity:
+    -   **Burst Detection**: If an IP sends 20+ requests within a 5-second window, it triggers an automatic 1-hour block
+    -   **Excessive Traffic**: If an IP sends 100+ requests within a 10-minute window, it triggers an automatic 6-hour block
+-   Blocked IPs receive HTTP 403 (Forbidden) with an explanation message
 
 ### Implementation Details
 
-- All IP tracking is done in-memory only (no permanent storage)
-- Data automatically expires and is cleaned up after 30 minutes of inactivity
-- No persistent tracking of user IPs
-- Memory-efficient with automatic cleanup of expired data
-- Restart of the application/Lambda function clears all tracking data
+-   All IP tracking is done in-memory only (no permanent storage)
+-   Data automatically expires and is cleaned up after 30 minutes of inactivity
+-   No persistent tracking of user IPs
+-   Memory-efficient with automatic cleanup of expired data
+-   Restart of the application/Lambda function clears all tracking data
 
 ### Comprehensive Security Testing
 
 The security features are thoroughly tested with dedicated test suites:
 
-- **Unit Tests**:
+-   **Unit Tests**:
 
-    - `IpProtectionServiceTests`: Validates IP blocking, expiration, and abuse detection
-    - `RateLimitingMiddlewareTests`: Tests request throttling and appropriate status codes
+    -   `IpProtectionServiceTests`: Validates IP blocking, expiration, and abuse detection
+    -   `RateLimitingMiddlewareTests`: Tests request throttling and appropriate status codes
 
-- **Integration Tests**:
+-   **Integration Tests**:
 
-    - `SecurityHeadersTests`: Ensures proper security headers are set for all responses
-    - `RateLimitingIntegrationTests`: End-to-end testing of rate limiting with real HTTP requests
-    - `IpSpoofingTests`: Tests detection and blocking of IP spoofing attempts
+    -   `SecurityHeadersTests`: Ensures proper security headers are set for all responses
+    -   `RateLimitingIntegrationTests`: End-to-end testing of rate limiting with real HTTP requests
+    -   `IpSpoofingTests`: Tests detection and blocking of IP spoofing attempts
 
-- **Performance and Concurrency Tests**:
-    - `RateLimitingPerformanceTests`: Measures the performance impact of rate limiting
-    - `IpProtectionServiceConcurrencyTests`: Validates thread safety under high concurrent load
+-   **Performance and Concurrency Tests**:
+    -   `RateLimitingPerformanceTests`: Measures the performance impact of rate limiting
+    -   `IpProtectionServiceConcurrencyTests`: Validates thread safety under high concurrent load
 
 These tests ensure that the security features work correctly under various conditions, including:
 
-- High traffic scenarios
-- Abuse and spam detection
-- Concurrent access
-- Different HTTP methods and routes
-- Various user agents and client types
+-   High traffic scenarios
+-   Abuse and spam detection
+-   Concurrent access
+-   Different HTTP methods and routes
+-   Various user agents and client types
 
 ### Error Responses
 
@@ -324,15 +332,15 @@ The API provides several predefined templates that can be selected using the `Te
 
 The API includes middleware for standardized error handling:
 
-- Validation errors return 400 Bad Request with details
-- Rate limiting violations return details with waiting time information
-- SMTP connection failures initiate graceful shutdown
-- Unexpected errors return 500 Internal Server Error
+-   Validation errors return 400 Bad Request with details
+-   Rate limiting violations return details with waiting time information
+-   SMTP connection failures initiate graceful shutdown
+-   Unexpected errors return 500 Internal Server Error
 
 ## Security Considerations
 
-- The API uses CORS with appropriate headers for cross-domain requests
-- SMTP passwords are stored as environment variables, not in configuration files
-- SMTP connections are tested at startup to ensure availability
-- Separate test email configurations allow for safe testing without affecting production settings
-- Rate limiting helps prevent abuse and spam
+-   The API uses CORS with appropriate headers for cross-domain requests
+-   SMTP passwords are stored as environment variables, not in configuration files
+-   SMTP connections are tested at startup to ensure availability
+-   Separate test email configurations allow for safe testing without affecting production settings
+-   Rate limiting helps prevent abuse and spam
