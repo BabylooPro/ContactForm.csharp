@@ -16,8 +16,7 @@ namespace ContactForm.Tests.IntegrationTests
     // FACTORY FOR CREATING APPLICATION
     internal class ApplicationFactory : WebApplicationFactory<Program>
     {
-        // CONFIGURING WEB HOST
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        static ApplicationFactory()
         {
             // SET SMTP CONFIGURATIONS FROM ENVIRONMENT VARIABLE FOR TESTING
             var testConfigurations = new List<SmtpConfig>
@@ -38,6 +37,10 @@ namespace ContactForm.Tests.IntegrationTests
             Environment.SetEnvironmentVariable("SMTP_0_PASSWORD", "test-password");
             Environment.SetEnvironmentVariable("SMTP_RECEPTION_EMAIL", "reception@example.com");
             Environment.SetEnvironmentVariable("SMTP_CATCHALL_EMAIL", "catchall@example.com");
+        }
+
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
 
             // REMOVING EMAIL SERVICE AND ADDING MOCKED EMAIL SERVICE
             builder.ConfigureServices(services =>

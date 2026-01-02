@@ -9,11 +9,8 @@ namespace ContactForm.Tests.TestConfiguration
 {
     public class TestWebApplicationFactory : WebApplicationFactory<Program>
     {
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        static TestWebApplicationFactory()
         {
-            // ENSURE ENVIRONNEMENT IS SET TO TESTING
-            builder.UseEnvironment("Testing");
-
             // SET SMTP CONFIGURATIONS FROM ENVIRONMENT VARIABLE
             var testConfigurations = new List<SmtpConfig>
             {
@@ -46,6 +43,12 @@ namespace ContactForm.Tests.TestConfiguration
             Environment.SetEnvironmentVariable("SMTP_2_PASSWORD_TEST", "test-password-2-test");
             Environment.SetEnvironmentVariable("SMTP_RECEPTION_EMAIL", "reception@example.com");
             Environment.SetEnvironmentVariable("SMTP_CATCHALL_EMAIL", "catchall@example.com");
+        }
+
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            // ENSURE ENVIRONNEMENT IS SET TO TESTING
+            builder.UseEnvironment("Testing");
 
             builder.ConfigureServices(services =>
             {
