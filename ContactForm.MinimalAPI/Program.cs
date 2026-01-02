@@ -177,6 +177,7 @@ namespace ContactForm.MinimalAPI
             });
             app.UseCors();
             app.UseRouting();
+            app.UseApiVersionError();
             app.UseAuthorization();
             app.UseHttpsRedirection();
 
