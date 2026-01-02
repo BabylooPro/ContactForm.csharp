@@ -136,7 +136,7 @@ namespace ContactForm.MinimalAPI.Services
                     }
                     
                     throw new InvalidOperationException(
-                        $"This email has already been used to send a message with this SMTP server. " +
+                        $"This email has already been used to send a message recently. " +
                         $"You can send another message in {timeMessage} (Usage: {uniqueResult.UsageCount})"
                     );
                 }
