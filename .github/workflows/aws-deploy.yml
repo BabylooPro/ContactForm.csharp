@@ -604,8 +604,11 @@ jobs:
 
                   # PARSE SMTP VARIABLES FROM DEFAULT_PROJECT_ENV
                   # READ FROM ENVIRONMENT VARIABLE DIRECTLY TO AVOID GITHUB ACTIONS EXPANSION ISSUES
-                  # USE SED TO TRIM WHITESPACE INSTEAD OF XARGS (XARGS CAN'T HANDLE QUOTES IN VALUES)
-                  IFS=';' read -ra ENV_VARS_ARRAY <<< "${DEFAULT_PROJECT_ENV:-}"
+                  # FIRST CLEAN NEWLINES AND CARRIAGE RETURNS, THEN SPLIT BY SEMICOLON
+                  CLEANED_ENV_VARS=$(printf '%s' "${DEFAULT_PROJECT_ENV:-}" | tr -d '\n\r' | sed 's/[[:space:]]*;[[:space:]]*/;/g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+                  # SPLIT BY SEMICOLON
+                  IFS=';' read -ra ENV_VARS_ARRAY <<< "$CLEANED_ENV_VARS"
                   for VAR in "${ENV_VARS_ARRAY[@]}"; do
                     if [ -n "$VAR" ]; then
                       # TRIM WHITESPACE USING SED (SAFER THAN XARGS FOR VALUES WITH QUOTES)
