@@ -554,8 +554,15 @@ jobs:
                   echo "DEPLOYING WITH AWS CREDENTIALS..."
 
                   # BUILD ENVIRONMENT VARIABLES STRING
-                  ENV_VARS="ASPNETCORE_ENVIRONMENT=${{ env.ASPNETCORE_ENVIRONMENT }};LAMBDA_DEBUG=${{ env.LAMBDA_DEBUG }};${{ env.DEFAULT_PROJECT_ENV }}"
-                  ENV_VARS="${ENV_VARS// /}"
+                  # REMOVE NEWLINES AND NORMALIZE WHITESPACE FROM DEFAULT_PROJECT_ENV
+                  CLEANED_ENV=$(echo -n "${{ env.DEFAULT_PROJECT_ENV }}" | tr -d '\n\r' | sed 's/[[:space:]]*;[[:space:]]*/;/g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                  ENV_VARS="ASPNETCORE_ENVIRONMENT=${{ env.ASPNETCORE_ENVIRONMENT }};LAMBDA_DEBUG=${{ env.LAMBDA_DEBUG }}"
+                  if [ -n "$CLEANED_ENV" ]; then
+                    ENV_VARS="${ENV_VARS};${CLEANED_ENV}"
+                  fi
+
+                  # REMOVE ANY REMAINING NEWLINES AND NORMALIZE
+                  ENV_VARS=$(echo -n "$ENV_VARS" | tr -d '\n\r' | sed 's/[[:space:]]*;[[:space:]]*/;/g')
 
                   dotnet lambda deploy-function ${{ env.FUNCTION_NAME }} \
                     --region ${{ env.AWS_REGION }} \
