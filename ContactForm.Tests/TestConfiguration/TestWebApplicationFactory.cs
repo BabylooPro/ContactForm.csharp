@@ -58,11 +58,11 @@ namespace ContactForm.Tests.TestConfiguration
 
                 mockEmailService.Setup(s => s.SendEmailAsync(It.IsAny<EmailRequest>(), It.IsAny<int>(), It.IsAny<bool>())).ReturnsAsync(true);
                 mockEmailService.Setup(s => s.GetAllSmtpConfigs())
-                    .Returns(new List<SmtpConfig>
-                    {
-                        new SmtpConfig {Index = 1, Email = "test1@example.com"},
-                        new SmtpConfig {Index = 2, Email = "test2@example.com"},
-                    });
+                    .Returns(
+                    [
+                        new() { Index = 1, Email = "test1@example.com" },
+                        new() { Index = 2, Email = "test2@example.com" },
+                    ]);
 
                 // MOCK SMTP TEST SERVICE
                 var mockSmtpTestService = new Mock<ISmtpTestService>();

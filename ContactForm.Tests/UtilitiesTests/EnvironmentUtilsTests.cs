@@ -13,8 +13,8 @@ namespace ContactForm.Tests.UtilitiesTests
     public class EnvironmentUtilsTests : IDisposable
     {
         // DEPENDENCY INJECTION
-        private readonly Dictionary<string, string?> _originalEnvVars = new();
-        private readonly List<string> _tempFiles = new();
+        private readonly Dictionary<string, string?> _originalEnvVars = [];
+        private readonly List<string> _tempFiles = [];
 
         // CONSTRUCTOR INITIALIZING ENVIRONMENT VARIABLES
         public EnvironmentUtilsTests()
@@ -70,15 +70,8 @@ namespace ContactForm.Tests.UtilitiesTests
                     // IGNORE ERRORS DURING CLEANUP
                 }
             }
-        }
 
-        // CREATE TEMPORARY .ENV FILE
-        private string CreateTempEnvFile(string content)
-        {
-            var tempFile = Path.Combine(Path.GetTempPath(), $"test_env_{Guid.NewGuid()}.env");
-            File.WriteAllText(tempFile, content);
-            _tempFiles.Add(tempFile);
-            return tempFile;
+            GC.SuppressFinalize(this);
         }
 
         // CREATE TEMPORARY DIRECTORY WITH .ENV FILE

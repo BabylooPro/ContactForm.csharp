@@ -5,15 +5,9 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace ContactForm.MinimalAPI.Utilities
 {
-    public class ConfigureSwaggerOptions : IConfigureOptions<SwaggerGenOptions>
+    public class ConfigureSwaggerOptions(IApiVersionDescriptionProvider provider) : IConfigureOptions<SwaggerGenOptions>
     {
-        private readonly IApiVersionDescriptionProvider _provider;
-
-        // INITIALIZES A NEW INSTANCE OF CONFIGURE SWAGGER OPTIONS
-        public ConfigureSwaggerOptions(IApiVersionDescriptionProvider provider)
-        {
-            _provider = provider;
-        }
+        private readonly IApiVersionDescriptionProvider _provider = provider;
 
         // CONFIGURE SWAGGER OPTIONS FOR EACH API VERSION
         public void Configure(SwaggerGenOptions options)

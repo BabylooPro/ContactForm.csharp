@@ -144,7 +144,7 @@ namespace ContactForm.Tests.ServicesTests
             
             // ASSERT - NO EXCEPTIONS SHOULD HAVE BEEN THROWN
             Assert.Empty(exceptions);
-            if (exceptions.Any())
+            if (exceptions.Count > 0)
             {
                 _output.WriteLine($"Thread safety test failed with exceptions: {string.Join(", ", exceptions.Select(e => e.Message))}");
             }

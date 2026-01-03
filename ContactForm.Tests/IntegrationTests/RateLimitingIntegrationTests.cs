@@ -29,12 +29,22 @@ namespace ContactForm.Tests.IntegrationTests
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder
-                        .UseStartup<RateLimitTestStartup>()
                         .UseTestServer()
                         .ConfigureServices(services =>
                         {
                             // REPLACE THE REAL SERVICE WITH OUR MOCK
                             services.AddSingleton(_ipProtectionServiceMock.Object);
+                            services.AddControllers();
+                            services.AddLogging();
+                        })
+                        .Configure(app =>
+                        {
+                            app.UseMiddleware<MinimalAPI.Middleware.RateLimitingMiddleware>();
+                            app.UseRouting();
+                            app.UseEndpoints(endpoints =>
+                            {
+                                endpoints.MapGet("/test", () => "Test endpoint");
+                            });
                         });
                 });
 
@@ -109,30 +119,6 @@ namespace ContactForm.Tests.IntegrationTests
             Assert.True(response.Headers.Contains("Retry-After"));
             var responseContent = await response.Content.ReadAsStringAsync();
             Assert.Contains("Too many requests", responseContent);
-        }
-    }
-
-    // TEST STARTUP CLASS THAT USES THE SAME CONFIGURATION AS THE REAL APP
-    public class RateLimitTestStartup
-    {
-        public void ConfigureServices(IServiceCollection services)
-        {
-            // CONFIGURE SERVICES
-            services.AddControllers();
-            services.AddLogging();
-        }
-
-        public void Configure(IApplicationBuilder app)
-        {
-            // CONFIGURE APP WITH RATE LIMITING
-            app.UseMiddleware<ContactForm.MinimalAPI.Middleware.RateLimitingMiddleware>();
-            
-            // ADD TEST ENDPOINT FOR VERIFICATION
-            app.UseRouting();
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapGet("/test", () => "Test endpoint");
-            });
         }
     }
 } 

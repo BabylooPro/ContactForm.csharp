@@ -3,14 +3,25 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using ContactForm.MinimalAPI.Models;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ContactForm.MinimalAPI.Utilities
 {
     // UTILITY CLASS FOR ENVIRONMENT VARIABLES
-    public static class EnvironmentUtils
+    public static partial class EnvironmentUtils
     {
+        private static readonly JsonSerializerOptions JsonSerializerOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+            AllowTrailingCommas = true,
+            ReadCommentHandling = JsonCommentHandling.Skip
+        };
+
+        private static readonly char[] SplitSeparator = ['='];
+
+        // CHECK FOR MISSING ENVIRONMENT VARIABLES
         public static List<string> CheckMissingEnvironmentVariables(params string[] variableNames)
         {
             var missingVariables = new List<string>(); // LIST FOR STORING MISSING VARIABLES
@@ -48,7 +59,7 @@ namespace ContactForm.MinimalAPI.Utilities
 
             var nl = Environment.NewLine;
 
-            var locations = string.Join(nl, new[]
+            var locations = string.Join(nl, new List<string>
             {
                 "Fix it by defining the variable in one of these places:",
                 $"- launchSettings.json: ContactForm.MinimalAPI/Properties/launchSettings.json (environmentVariables section)",
@@ -79,7 +90,7 @@ namespace ContactForm.MinimalAPI.Utilities
         // CREATE INVALID SMTP CONFIGURATIONS FORMAT EXCEPTION
         private static InvalidOperationException CreateInvalidSmtpConfigurationsFormatException(string envVarName, string originalValue, string processedValue)
         {
-            var preview = processedValue.Length > 80 ? processedValue.Substring(0, 80) + "..." : processedValue;
+            var preview = processedValue.Length > 80 ? string.Concat(processedValue.AsSpan(0, 80), "...") : processedValue;
             var nl = Environment.NewLine;
 
             var message =
@@ -100,7 +111,7 @@ namespace ContactForm.MinimalAPI.Utilities
         // CREATE SMTP CONFIGURATIONS JSON PARSE EXCEPTION
         private static InvalidOperationException CreateSmtpConfigurationsJsonParseException(string envVarName, string processedValue, JsonException ex)
         {
-            var preview = processedValue.Length > 140 ? processedValue.Substring(0, 140) + "..." : processedValue;
+            var preview = processedValue.Length > 140 ? string.Concat(processedValue.AsSpan(0, 140), "...") : processedValue;
             var nl = Environment.NewLine;
 
             var message =
@@ -145,16 +156,16 @@ namespace ContactForm.MinimalAPI.Utilities
 
             if (jsonValue.StartsWith('"') && !jsonValue.EndsWith('"'))
             {
-                jsonValue = jsonValue.Substring(1);
+                jsonValue = jsonValue[1..];
             }
             else if (jsonValue.StartsWith('"') && jsonValue.EndsWith('"') && jsonValue.Length > 1)
             {
-                jsonValue = jsonValue.Substring(1, jsonValue.Length - 2);
+                jsonValue = jsonValue[1..^1];
                 jsonValue = jsonValue.Replace("\\\"", "\"");
             }
             else if (jsonValue.StartsWith('\'') && jsonValue.EndsWith('\'') && jsonValue.Length > 1)
             {
-                jsonValue = jsonValue.Substring(1, jsonValue.Length - 2);
+                jsonValue = jsonValue[1..^1];
             }
 
             // NORMALIZE LINE ENDINGS (CONVERT ALL TO SPACES)
@@ -164,11 +175,7 @@ namespace ContactForm.MinimalAPI.Utilities
                 .Replace("\r", " ");
 
             // REMOVE EXTRA WHITESPACE (MULTIPLE SPACES/TABS TO SINGLE SPACE)
-            jsonValue = System.Text.RegularExpressions.Regex.Replace(
-                jsonValue,
-                @"[ \t]+",
-                " "
-            );
+            jsonValue = WhitespaceRegex().Replace(jsonValue, " ");
 
             jsonValue = jsonValue.Trim();
 
@@ -181,14 +188,7 @@ namespace ContactForm.MinimalAPI.Utilities
             // TRY TO PARSE JSON VALUE AS LIST OF SMTP CONFIGURATIONS
             try
             {
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    AllowTrailingCommas = true,
-                    ReadCommentHandling = JsonCommentHandling.Skip
-                };
-
-                var configurations = JsonSerializer.Deserialize<List<SmtpConfig>>(jsonValue, options);
+                var configurations = JsonSerializer.Deserialize<List<SmtpConfig>>(jsonValue, JsonSerializerOptions);
 
                 if (configurations == null || configurations.Count == 0)
                 {
@@ -243,7 +243,7 @@ namespace ContactForm.MinimalAPI.Utilities
                         // CHECK IF THIS LINE DEFINES THE TARGET VARIABLE
                         if (!inMultilineValue && trimmedLine.StartsWith($"{variableName}=", StringComparison.OrdinalIgnoreCase))
                         {
-                            var parts = trimmedLine.Split(new[] { '=' }, 2);
+                            var parts = trimmedLine.Split(SplitSeparator, 2);
                             if (parts.Length == 2)
                             {
                                 currentKey = parts[0];
@@ -322,5 +322,8 @@ namespace ContactForm.MinimalAPI.Utilities
                 options.CatchAllEmail = smtpSettings.CatchAllEmail;
             });
         }
+
+        [GeneratedRegex(@"[ \t]+")]
+        private static partial Regex WhitespaceRegex();
     }
 }

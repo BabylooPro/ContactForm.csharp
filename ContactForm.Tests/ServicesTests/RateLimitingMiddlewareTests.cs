@@ -72,7 +72,7 @@ namespace ContactForm.Tests.ServicesTests
             var context = new DefaultHttpContext();
             context.Connection.RemoteIpAddress = IPAddress.Parse(clientIp);
             context.Request.Path = path;
-            context.Request.Headers["User-Agent"] = userAgent;
+            context.Request.Headers.UserAgent = userAgent;
             
             _ipProtectionServiceMock.Setup(x => x.IsIpBlocked(clientIp)).Returns(false);
 

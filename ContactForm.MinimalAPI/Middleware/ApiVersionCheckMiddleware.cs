@@ -3,14 +3,9 @@ using System.Text.Json;
 
 namespace ContactForm.MinimalAPI.Middleware
 {
-    public class ApiVersionCheckMiddleware
+    public class ApiVersionCheckMiddleware(RequestDelegate next)
     {
-        private readonly RequestDelegate _next;
-
-        public ApiVersionCheckMiddleware(RequestDelegate next)
-        {
-            _next = next;
-        }
+        private readonly RequestDelegate _next = next;
 
         public async Task InvokeAsync(HttpContext context)
         {

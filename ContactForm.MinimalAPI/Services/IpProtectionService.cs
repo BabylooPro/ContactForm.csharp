@@ -12,7 +12,7 @@ namespace ContactForm.MinimalAPI.Services
         void BlockIp(string ipAddress, TimeSpan duration, string reason);
     }
 
-    public class IpProtectionService : IIpProtectionService
+    public class IpProtectionService : IIpProtectionService, IDisposable
     {
         private readonly ILogger<IpProtectionService> _logger;
         private readonly ConcurrentDictionary<string, DateTime> _blockedIps = new();
@@ -24,12 +24,20 @@ namespace ContactForm.MinimalAPI.Services
         private const int TOTAL_THRESHOLD = 100;
         private const int TRACKING_WINDOW_MINUTES = 10;
 
+        private readonly Timer _cleanupTimer;
+
         public IpProtectionService(ILogger<IpProtectionService> logger)
         {
             _logger = logger;
             
             // START A BACKGROUND CLEANUP TASK
-            new Timer(CleanupExpiredEntries, null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
+            _cleanupTimer = new Timer(CleanupExpiredEntries, null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
+        }
+
+        public void Dispose()
+        {
+            _cleanupTimer?.Dispose();
+            GC.SuppressFinalize(this);
         }
 
         public bool IsIpBlocked(string ipAddress)
@@ -37,8 +45,6 @@ namespace ContactForm.MinimalAPI.Services
             if (_blockedIps.TryGetValue(ipAddress, out DateTime expirationTime))
             {
                 if (DateTime.UtcNow < expirationTime) return true;
-                
-                // EXPIRED BLOCK - REMOVE IT
                 _blockedIps.TryRemove(ipAddress, out _);
             }
             
@@ -110,7 +116,7 @@ namespace ContactForm.MinimalAPI.Services
     // HELPER CLASS TO TRACK REQUESTS FOR AN IP
     internal class RequestTracker
     {
-        private ConcurrentBag<DateTime> _requestTimestamps = new();
+        private ConcurrentBag<DateTime> _requestTimestamps = [];
         
         public void AddRequest(DateTime timestamp)
         {

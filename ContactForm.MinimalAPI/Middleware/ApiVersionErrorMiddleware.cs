@@ -6,14 +6,9 @@ using Microsoft.AspNetCore.Http;
 namespace ContactForm.MinimalAPI.Middleware
 {
     // MIDDLEWARE TO HANDLE CUSTOM ERROR MESSAGES FOR UNSUPPORTED API VERSIONS
-    public class ApiVersionErrorMiddleware
+    public partial class ApiVersionErrorMiddleware(RequestDelegate next)
     {
-        private readonly RequestDelegate _next;
-
-        public ApiVersionErrorMiddleware(RequestDelegate next)
-        {
-            _next = next;
-        }
+        private readonly RequestDelegate _next = next;
 
         // INVOKE METHOD FOR HANDLING UNSUPPORTED API VERSION ERRORS
         public async Task InvokeAsync(HttpContext context)
@@ -47,12 +42,12 @@ namespace ContactForm.MinimalAPI.Middleware
         }
 
         // HELPER METHOD TO EXTRACT REQUESTED VERSION FROM REQUEST
-        private string? ExtractRequestedVersion(HttpContext context)
+        private static string? ExtractRequestedVersion(HttpContext context)
         {
             var path = context.Request.Path.Value;
             if (path != null)
             {
-                var pathMatch = Regex.Match(path, @"/api/v([\d.]+)/");
+                var pathMatch = PathVersionRegex().Match(path);
                 if (pathMatch.Success)
                 {
                     return pathMatch.Groups[1].Value;
@@ -71,6 +66,9 @@ namespace ContactForm.MinimalAPI.Middleware
 
             return null;
         }
+
+        [GeneratedRegex(@"/api/v([\d.]+)/")]
+        private static partial Regex PathVersionRegex();
     }
 
     // EXTENSION METHOD TO MAKE REGISTRATION CLEANER

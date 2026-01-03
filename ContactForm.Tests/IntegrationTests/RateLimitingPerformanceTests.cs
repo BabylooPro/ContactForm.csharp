@@ -20,8 +20,6 @@ namespace ContactForm.Tests.IntegrationTests
 {
     public class RateLimitingPerformanceTests
     {
-        private readonly TestServer _server;
-        private readonly HttpClient _client;
         private readonly Mock<IIpProtectionService> _ipProtectionServiceMock;
         private readonly ITestOutputHelper _output;
 
@@ -32,23 +30,6 @@ namespace ContactForm.Tests.IntegrationTests
             // CREATE MOCK SERVICE
             _ipProtectionServiceMock = new Mock<IIpProtectionService>();
             _ipProtectionServiceMock.Setup(x => x.IsIpBlocked(It.IsAny<string>())).Returns(false);
-            
-            // SETUP TEST SERVER
-            var hostBuilder = Host.CreateDefaultBuilder()
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder
-                        .UseStartup<PerformanceTestStartup>()
-                        .UseTestServer()
-                        .ConfigureServices(services =>
-                        {
-                            services.AddSingleton(_ipProtectionServiceMock.Object);
-                        });
-                });
-
-            var host = hostBuilder.Start();
-            _server = host.GetTestServer();
-            _client = _server.CreateClient();
         }
         
         // TEST FOR CHECKING IF RATE LIMITING HAS A MINIMAL PERFORMANCE IMPACT
@@ -66,14 +47,40 @@ namespace ContactForm.Tests.IntegrationTests
                 var hostBuilder = Host.CreateDefaultBuilder()
                     .ConfigureWebHostDefaults(webBuilder =>
                     {
-                        webBuilder
-                            .UseStartup<PerformanceTestStartup>()
-                            .UseTestServer();
+                    webBuilder
+                        .UseTestServer()
+                        .ConfigureServices(services =>
+                        {
+                            services.AddControllers();
+                            services.AddLogging();
+                            services.AddSingleton<IIpProtectionService, IpProtectionService>();
+                        })
+                        .Configure(app =>
+                        {
+                            app.UseRouting();
+                            app.Map("/test-with-rate-limiting", appBranch =>
+                            {
+                                appBranch.UseMiddleware<MinimalAPI.Middleware.RateLimitingMiddleware>();
+                                appBranch.Run(async context =>
+                                {
+                                    context.Response.StatusCode = 200;
+                                    await context.Response.WriteAsync("OK");
+                                });
+                            });
+                            app.Map("/test-without-rate-limiting", appBranch =>
+                            {
+                                appBranch.Run(async context =>
+                                {
+                                    context.Response.StatusCode = 200;
+                                    await context.Response.WriteAsync("OK");
+                                });
+                            });
+                        });
                     });
 
                 var host = hostBuilder.Start();
                 var testServer = host.GetTestServer();
-                var client = testServer.CreateClient();
+                using var client = testServer.CreateClient();
                 
                 // TIME WITH RATE LIMITING
                 var stopwatch1 = Stopwatch.StartNew();
@@ -105,44 +112,6 @@ namespace ContactForm.Tests.IntegrationTests
             // A THRESHOLD OF 3500% IS MORE APPROPRIATE FOR THIS INTEGRATION TEST WITH TESTSERVER
             // THE MEASUREMENTS CAN VARY CONSIDERABLY IN THE TEST ENVIRONMENT
             Assert.True(avgOverhead < 3500, $"Rate limiting overhead ({avgOverhead:F2}%) exceeds threshold (3500%)");
-        }
-    }
-
-    // TEST STARTUP CLASS THAT USES THE SAME CONFIGURATION AS THE REAL APP
-    public class PerformanceTestStartup
-    {
-        public void ConfigureServices(IServiceCollection services)
-        {
-            services.AddControllers();
-            services.AddLogging();
-            services.AddSingleton<IIpProtectionService, IpProtectionService>();
-        }
-
-        public void Configure(IApplicationBuilder app)
-        {
-            // SETUP TEST ENDPOINTS
-            app.UseRouting();
-            
-            // ENDPOINT WITH RATE LIMITING
-            app.Map("/test-with-rate-limiting", appBranch =>
-            {
-                appBranch.UseMiddleware<ContactForm.MinimalAPI.Middleware.RateLimitingMiddleware>();
-                appBranch.Run(async context =>
-                {
-                    context.Response.StatusCode = 200;
-                    await context.Response.WriteAsync("OK");
-                });
-            });
-            
-            // ENDPOINT WITHOUT RATE LIMITING 
-            app.Map("/test-without-rate-limiting", appBranch =>
-            {
-                appBranch.Run(async context =>
-                {
-                    context.Response.StatusCode = 200;
-                    await context.Response.WriteAsync("OK");
-                });
-            });
         }
     }
 } 

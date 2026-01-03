@@ -7,18 +7,11 @@ using Microsoft.Extensions.Logging;
 namespace ContactForm.MinimalAPI.Middleware
 {
     // ERROR HANDLING MIDDLEWARE
-    public class ErrorHandlingMiddleware
+    public class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorHandlingMiddleware> logger)
     {
         // REQUEST DELEGATE AND LOGGER DEPENDENCY INJECTION
-        private readonly RequestDelegate _next;
-        private readonly ILogger<ErrorHandlingMiddleware> _logger;
-
-        // CONSTRUCTOR INRIAIALIZING DEPENDENCY INJECTION
-        public ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorHandlingMiddleware> logger)
-        {
-            _next = next;
-            _logger = logger;
-        }
+        private readonly RequestDelegate _next = next;
+        private readonly ILogger<ErrorHandlingMiddleware> _logger = logger;
 
         // INVOKE METHOD FOR HANDLING EXCEPTIONS
         public async Task Invoke(HttpContext context)

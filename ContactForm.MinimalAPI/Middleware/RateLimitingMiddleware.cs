@@ -61,7 +61,7 @@ namespace ContactForm.MinimalAPI.Middleware
             {
                 _logger.LogWarning("Rate limit exceeded for IP: {ClientIp}", clientIp);
                 context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-                context.Response.Headers["Retry-After"] = "60"; // RETRY AFTER 60 SECONDS
+                context.Response.Headers.RetryAfter = "60"; // RETRY AFTER 60 SECONDS
                 await context.Response.WriteAsync("Too many requests. Please try again later.");
             }
         }

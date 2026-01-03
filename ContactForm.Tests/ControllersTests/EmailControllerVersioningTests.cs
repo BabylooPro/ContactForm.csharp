@@ -5,14 +5,9 @@ using Xunit;
 
 namespace ContactForm.Tests.ControllersTests
 {
-    public class EmailControllerVersioningTest : IClassFixture<TestWebApplicationFactory>
+    public class EmailControllerVersioningTest(TestWebApplicationFactory factory) : IClassFixture<TestWebApplicationFactory>
     {
-        private readonly TestWebApplicationFactory _factory;
-
-        public EmailControllerVersioningTest(TestWebApplicationFactory factory)
-        {
-            _factory = factory;
-        }
+        private readonly TestWebApplicationFactory _factory = factory;
 
         // TEST FOR GET CONFIGS ENDPOINT WITHOUT VERSION
         [Fact]

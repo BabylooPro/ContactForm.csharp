@@ -31,11 +31,22 @@ namespace ContactForm.Tests.IntegrationTests
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder
-                        .UseStartup<IpSpoofingTestStartup>()
                         .UseTestServer()
                         .ConfigureServices(services =>
                         {
                             services.AddSingleton(_loggerMock.Object);
+                            services.AddControllers();
+                            services.AddLogging();
+                            services.AddSingleton<IIpProtectionService, IpProtectionService>();
+                        })
+                        .Configure(app =>
+                        {
+                            app.UseMiddleware<IpSpoofingMiddleware>();
+                            app.UseRouting();
+                            app.UseEndpoints(endpoints =>
+                            {
+                                endpoints.MapGet("/api/test", () => "Test endpoint");
+                            });
                         });
                 });
 
@@ -111,20 +122,14 @@ namespace ContactForm.Tests.IntegrationTests
     }
 
     // MIDDLEWARE TO DETECT IP SPOOFING
-    public class IpSpoofingMiddleware
+    public class IpSpoofingMiddleware(RequestDelegate next, ILogger<IpSpoofingMiddleware> logger)
     {
-        private readonly RequestDelegate _next;
-        private readonly ILogger<IpSpoofingMiddleware> _logger;
+        private readonly RequestDelegate _next = next;
+        private readonly ILogger<IpSpoofingMiddleware> _logger = logger;
         private readonly HashSet<string> _suspiciousUserAgents = new(StringComparer.OrdinalIgnoreCase)
         {
             "SQLMAP", "Havij", "Acunetix", "Nessus", "Nikto", "w3af", "Morfeus"
         };
-
-        public IpSpoofingMiddleware(RequestDelegate next, ILogger<IpSpoofingMiddleware> logger)
-        {
-            _next = next;
-            _logger = logger;
-        }
 
         public async Task InvokeAsync(HttpContext context)
         {
@@ -182,30 +187,6 @@ namespace ContactForm.Tests.IntegrationTests
             }
             
             await _next(context);
-        }
-    }
-
-    public class IpSpoofingTestStartup
-    {
-        public void ConfigureServices(IServiceCollection services)
-        {
-            services.AddControllers();
-            services.AddLogging();
-            services.AddSingleton<IIpProtectionService, IpProtectionService>();
-        }
-
-        public void Configure(IApplicationBuilder app)
-        {
-            // ADD IP SPOOFING PROTECTION
-            app.UseMiddleware<IpSpoofingMiddleware>();
-            
-            app.UseRouting();
-            
-            // TEST ENDPOINT
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapGet("/api/test", () => "Test endpoint");
-            });
         }
     }
 } 

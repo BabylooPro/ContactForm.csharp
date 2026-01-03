@@ -4,14 +4,9 @@ using ContactForm.Tests.TestConfiguration;
 
 namespace ContactForm.Tests.ControllersTests
 {
-    public class VersionTestControllerTests : IClassFixture<TestWebApplicationFactory>
+    public class VersionTestControllerTests(TestWebApplicationFactory factory) : IClassFixture<TestWebApplicationFactory>
     {
-        private readonly TestWebApplicationFactory _factory;
-
-        public VersionTestControllerTests(TestWebApplicationFactory factory)
-        {
-            _factory = factory;
-        }
+        private readonly TestWebApplicationFactory _factory = factory;
 
         // TEST FOR GET V1 ENDPOINT WITH PATH VERSION TO RETURN V1 DATA
         [Fact]

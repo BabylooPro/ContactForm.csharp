@@ -13,8 +13,7 @@ namespace ContactForm.MinimalAPI
         {
             builder.ConfigureServices(services =>
             {
-                var webBuilder = WebApplication.CreateBuilder();
-                Program.ConfigureServices(webBuilder, services);
+                Program.ConfigureServices(services);
 
                 // ENSURE VERSIONING SERVICES ARE REGISTERED
                 if (!services.Any(s => s.ServiceType == typeof(IApiVersionDescriptionProvider)))
@@ -27,7 +26,7 @@ namespace ContactForm.MinimalAPI
                 app.UseCors(builder =>
                     builder.WithOrigins(
                         "http://localhost:3000",
-                        "https://maxremy.dev",
+                        "https://maxremy.dev", // TODO: INSERT THIS TO VARIABLE ENVIRONNEMENT BY INDEXING, NO HARDCODED WEBSITE HERE
                         "https://keypops.app"
                     )
                     .AllowAnyMethod()
@@ -49,10 +48,7 @@ namespace ContactForm.MinimalAPI
                 var response = await base.FunctionHandlerAsync(request, lambdaContext);
 
                 // INITIALIZE HEADER DICTIONARY IF NULL
-                if (response.Headers == null)
-                {
-                    response.Headers = new Dictionary<string, string>();
-                }
+                response.Headers ??= new Dictionary<string, string>();
 
                 // CORS HEADERS TO ENABLE CROSS-ORIGIN REQUEST
                 response.Headers["Access-Control-Allow-Origin"] = GetOriginHeader(request);
@@ -77,13 +73,10 @@ namespace ContactForm.MinimalAPI
             }
         }
 
-        private void ProcessApiversionInRequest(APIGatewayProxyRequest request)
+        private static void ProcessApiversionInRequest(APIGatewayProxyRequest request)
         {
             // ENSURE HEADERS EXIST
-            if (request.Headers == null)
-            {
-                request.Headers = new Dictionary<string, string>();
-            }
+            request.Headers ??= new Dictionary<string, string>();
 
             // CHECK IF VERSION EXIST IN PATH, QUERY AND HEADER
             if (request.Path != null && request.Path.Contains("/v"))
@@ -107,12 +100,12 @@ namespace ContactForm.MinimalAPI
         }
 
         // HELPER METHOD TO GET ORIGIN HEADER BASED ON REQUEST
-        private string GetOriginHeader(APIGatewayProxyRequest request)
+        private static string GetOriginHeader(APIGatewayProxyRequest request)
         {
             var allowedOrigins = new[]
             {
                 "http://localhost:3000",
-                "https://maxremy.dev",
+                "https://maxremy.dev", // TODO: INSERT THIS TO VARIABLE ENVIRONNEMENT BY INDEXING, NO HARDCODED WEBSITE HERE
                 "https://keypops.app"
             };
 

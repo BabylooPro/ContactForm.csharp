@@ -33,8 +33,8 @@ namespace ContactForm.Tests.ServicesTests
 
             var smtpSettings = new SmtpSettings
             {
-                Configurations = new List<SmtpConfig>
-                {
+                Configurations =
+                [
                     new()
                     {
                         Host = "smtp.hostinger.com",
@@ -44,7 +44,7 @@ namespace ContactForm.Tests.ServicesTests
                         Description = "Test SMTP",
                         Index = 0,
                     },
-                },
+                ],
                 ReceptionEmail = "reception@example.com",
                 CatchAllEmail = "catch-all-email@example.com",
             };

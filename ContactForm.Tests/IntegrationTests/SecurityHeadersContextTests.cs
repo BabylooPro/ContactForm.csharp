@@ -16,6 +16,7 @@ namespace ContactForm.Tests.IntegrationTests
     {
         private readonly TestServer _server;
         private readonly HttpClient _client;
+        private static readonly string[] HttpMethods = ["GET", "POST", "PUT", "DELETE"];
 
         public SecurityHeadersContextTests()
         {
@@ -24,8 +25,52 @@ namespace ContactForm.Tests.IntegrationTests
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder
-                        .UseStartup<SecurityContextTestStartup>()
-                        .UseTestServer();
+                        .UseTestServer()
+                        .ConfigureServices(services =>
+                        {
+                            services.AddControllers();
+                            services.AddLogging();
+                            services.AddSingleton<IIpProtectionService, IpProtectionService>();
+                        })
+                        .Configure(app =>
+                        {
+                            app.Use(async (context, next) =>
+                            {
+                                context.Response.Headers.XContentTypeOptions = "nosniff";
+                                context.Response.Headers.XFrameOptions = "DENY";
+                                context.Response.Headers.XXSSProtection = "1; mode=block";
+                                context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+                                context.Response.Headers.ContentSecurityPolicy = "default-src 'self'";
+                                
+                                if (context.Request.Headers.ContainsKey("Authorization"))
+                                {
+                                    context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin";
+                                    context.Response.Headers["Cross-Origin-Embedder-Policy"] = "same-origin";
+                                }
+                                
+                                var userAgent = context.Request.Headers.UserAgent.ToString().ToLower();
+                                if (userAgent.Contains("postman") || userAgent.Contains("curl"))
+                                {
+                                    context.Response.Headers.CacheControl = "no-store";
+                                }
+                                
+                                await next();
+                            });
+                            
+                            app.UseRouting();
+                            
+                            app.UseEndpoints(endpoints =>
+                            {
+                                endpoints.MapGet("/api/test", () => "Test endpoint");
+                                endpoints.MapMethods("/api/methods-test", HttpMethods, () => "Methods test endpoint");
+                                endpoints.MapGet("/api/routes-test", () => "Routes test endpoint");
+                                endpoints.MapGet("/api/admin", () => "Admin endpoint");
+                                endpoints.MapGet("/api/public", () => "Public endpoint");
+                                endpoints.MapGet("/", () => "Root endpoint");
+                                endpoints.MapGet("/api/auth", () => "Authenticated endpoint");
+                                endpoints.MapGet("/api/client-type/{type}", (string type) => $"Client type: {type}");
+                            });
+                        });
                 });
 
             var host = hostBuilder.Start();
@@ -118,12 +163,12 @@ namespace ContactForm.Tests.IntegrationTests
             // ASSERT - API CLIENTS MAY RECEIVE DIFFERENT CACHE CONTROL DIRECTIVES
             if (clientType == "api-client" || clientType == "cli")
             {
-                Assert.Equal("no-store", response.Headers.GetValues("Cache-Control").FirstOrDefault());
+                Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
             }
         }
 
         // VERIFY THE SECURITY HEADERS
-        private void VerifySecurityHeaders(HttpResponseMessage response)
+        private static void VerifySecurityHeaders(HttpResponseMessage response)
         {
             // ASSERT - VERIFY BASE SECURITY HEADERS
             Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").FirstOrDefault());
@@ -131,77 +176,6 @@ namespace ContactForm.Tests.IntegrationTests
             Assert.Equal("1; mode=block", response.Headers.GetValues("X-XSS-Protection").FirstOrDefault());
             Assert.Equal("strict-origin-when-cross-origin", response.Headers.GetValues("Referrer-Policy").FirstOrDefault());
             Assert.Contains("default-src 'self'", response.Headers.GetValues("Content-Security-Policy").FirstOrDefault());
-        }
-    }
-
-    // TEST STARTUP CLASS THAT USES THE SAME CONFIGURATION AS THE REAL APP
-    public class SecurityContextTestStartup
-    {
-        public void ConfigureServices(IServiceCollection services)
-        {
-            services.AddControllers();
-            services.AddLogging();
-            services.AddSingleton<IIpProtectionService, IpProtectionService>();
-        }
-
-        public void Configure(IApplicationBuilder app)
-        {
-            // SECURITY HEADERS MIDDLEWARE - SETUP THE SECURITY HEADERS FOR ALL REQUESTS
-            app.Use(async (context, next) =>
-            {
-                // COMMON SECURITY HEADERS FOR ALL REQUESTS
-                context.Response.Headers.XContentTypeOptions = "nosniff";
-                context.Response.Headers.XFrameOptions = "DENY";
-                context.Response.Headers.XXSSProtection = "1; mode=block";
-                context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-                context.Response.Headers.ContentSecurityPolicy = "default-src 'self'";
-                
-                // IF AUTHENTICATED REQUEST, ADD STRICTER HEADERS
-                if (context.Request.Headers.ContainsKey("Authorization"))
-                {
-                    context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin";
-                    context.Response.Headers["Cross-Origin-Embedder-Policy"] = "same-origin";
-                }
-                
-                // SPECIAL HANDLING FOR API CLIENTS
-                var userAgent = context.Request.Headers.UserAgent.ToString().ToLower();
-                if (userAgent.Contains("postman") || userAgent.Contains("curl"))
-                {
-                    context.Response.Headers["Cache-Control"] = "no-store";
-                }
-                
-                await next();
-            });
-            
-            app.UseRouting();
-            
-            // TEST ENDPOINTS
-            app.UseEndpoints(endpoints =>
-            {
-                // BASIC TEST ENDPOINT - UTILISÉ UNIQUEMENT PAR LE TEST DE SPOOFING IP
-                endpoints.MapGet("/api/test", () => "Test endpoint");
-                
-                // ENDPOINT POUR TESTER LES MÉTHODES HTTP
-                endpoints.MapMethods("/api/methods-test", new[] { "GET", "POST", "PUT", "DELETE" }, () => "Methods test endpoint");
-                
-                // ENDPOINT POUR TESTER LES ROUTES
-                endpoints.MapGet("/api/routes-test", () => "Routes test endpoint");
-                
-                // ADMIN ENDPOINT
-                endpoints.MapGet("/api/admin", () => "Admin endpoint");
-                
-                // PUBLIC ENDPOINT
-                endpoints.MapGet("/api/public", () => "Public endpoint");
-                
-                // ROOT ENDPOINT
-                endpoints.MapGet("/", () => "Root endpoint");
-                
-                // AUTHENTICATED ENDPOINT
-                endpoints.MapGet("/api/auth", () => "Authenticated endpoint");
-                
-                // CLIENT TYPE ENDPOINTS
-                endpoints.MapGet("/api/client-type/{type}", (string type) => $"Client type: {type}");
-            });
         }
     }
 } 

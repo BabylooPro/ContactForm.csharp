@@ -15,20 +15,11 @@ namespace ContactForm.MinimalAPI.Controllers
     [ApiVersion("1.0")]
     [Route("api/v{version:apiVersion}/[controller]")] // ROUTE: api/v1/email
     [Route("api/[controller]")]
-    public class EmailController : ControllerBase
+    public class EmailController(IEmailService emailService, IOptions<SmtpSettings> smtpSettings) : ControllerBase
     {
         // DEPENDENCY INJECTION
-        private readonly IEmailService _emailService;
-        private readonly ILogger<EmailController> _logger;
-        private readonly SmtpSettings _smtpSettings;
-
-        // CONSTRUCTOR INRIAIALIZING DEPENDENCY INJECTION
-        public EmailController(IEmailService emailService,ILogger<EmailController> logger, IOptions<SmtpSettings> smtpSettings)
-        {
-            _emailService = emailService;
-            _logger = logger;
-            _smtpSettings = smtpSettings.Value;
-        }
+        private readonly IEmailService _emailService = emailService;
+        private readonly SmtpSettings _smtpSettings = smtpSettings.Value;
 
         // POST METHOD FOR SENDING EMAIL (api/email/{smtpId}) [example: (api/email/1) send regular email]
         [HttpPost("{smtpId}")]

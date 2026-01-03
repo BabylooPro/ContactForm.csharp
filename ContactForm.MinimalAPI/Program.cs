@@ -30,7 +30,7 @@ namespace ContactForm.MinimalAPI
             {
                 // CREATING WEB APPLICATION
                 var builder = WebApplication.CreateBuilder(args);
-                ConfigureServices(builder, builder.Services);
+                ConfigureServices(builder.Services);
 
                 // BUILDING WEB APPLICATION
                 var app = builder.Build();
@@ -53,7 +53,7 @@ namespace ContactForm.MinimalAPI
             }
         }
 
-        public static void ConfigureServices(WebApplicationBuilder builder, IServiceCollection services)
+        public static void ConfigureServices(IServiceCollection services)
         {
             // LOADING ENVIRONMENT VARIABLES
             DotEnv.Load();
@@ -85,7 +85,7 @@ namespace ContactForm.MinimalAPI
                 {
                     policy.WithOrigins(
                         "http://localhost:3000",
-                        "https://maxremy.dev",
+                        "https://maxremy.dev", // TODO: INSERT THIS TO VARIABLE ENVIRONNEMENT BY INDEXING, NO HARDCODED WEBSITE HERE
                         "https://keypops.app"
                     )
                     .AllowAnyMethod()
@@ -214,7 +214,6 @@ namespace ContactForm.MinimalAPI
 
         public static async Task EnsureSmtpConnectionsAsync(IServiceProvider serviceProvider)
         {
-            // GET LOGGER
             var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
 
             // TEST SMTP CONNECTIONS

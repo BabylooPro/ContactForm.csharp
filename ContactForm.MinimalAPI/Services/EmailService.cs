@@ -13,33 +13,23 @@ using MimeKit;
 namespace ContactForm.MinimalAPI.Services
 {
     // SERVICE FOR SENDING EMAILS
-    public class EmailService : IEmailService
+    public class EmailService(
+        ILogger<EmailService> logger,
+        IOptions<SmtpSettings> smtpSettings,
+        ISmtpClientWrapper smtpClient,
+        IEmailTrackingService emailTracker,
+        IEmailTemplateService templateService
+    ) : IEmailService
     {
         // DEPENDENCY INJECTION
-        private readonly ILogger<EmailService> _logger;
-        private readonly SmtpSettings _smtpSettings;
-        private readonly ISmtpClientWrapper _smtpClient;
-        private readonly IEmailTrackingService _emailTracker;
-        private readonly IEmailTemplateService _templateService;
-
-        // CONSTRUCTOR INRIAIALIZING DEPENDENCY INJECTION
-        public EmailService(
-            ILogger<EmailService> logger,
-            IOptions<SmtpSettings> smtpSettings,
-            ISmtpClientWrapper smtpClient,
-            IEmailTrackingService emailTracker,
-            IEmailTemplateService templateService
-        )
-        {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _smtpSettings = smtpSettings.Value;
-            _smtpClient = smtpClient;
-            _emailTracker = emailTracker;
-            _templateService = templateService;
-        }
+        private readonly ILogger<EmailService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        private readonly SmtpSettings _smtpSettings = smtpSettings.Value;
+        private readonly ISmtpClientWrapper _smtpClient = smtpClient;
+        private readonly IEmailTrackingService _emailTracker = emailTracker;
+        private readonly IEmailTemplateService _templateService = templateService;
 
         // METHOD FOR GETTING SMTP PASSWORD
-        private string GetSmtpPassword(SmtpConfig config, bool useTestEmail = false)
+        private static string GetSmtpPassword(SmtpConfig config, bool useTestEmail = false)
         {
             var envVar = useTestEmail ? $"SMTP_{config.Index}_PASSWORD_TEST" : $"SMTP_{config.Index}_PASSWORD";
 
@@ -82,25 +72,25 @@ namespace ContactForm.MinimalAPI.Services
                 // CHECK IF EMAIL IS NULL
                 if (string.IsNullOrEmpty(request.Email))
                 {
-                    throw new ArgumentNullException(nameof(request.Email), "Email cannot be null or empty");
+                    throw new ArgumentNullException(nameof(request), "Email cannot be null or empty");
                 }
 
                 // CHECK IF EMAIL IS UNIQUE
-                var uniqueResult = await _emailTracker.IsEmailUnique(request.Email, smtpId);
-                if (!uniqueResult.IsAllowed)
+                var (isAllowed, timeRemaining, usageCount) = await _emailTracker.IsEmailUnique(request.Email, smtpId);
+                if (!isAllowed)
                 {
                     _logger.LogWarning("");
                     Console.ForegroundColor = ConsoleColor.Yellow;
                     Console.WriteLine($"Duplicate email detected from: {request.Email}");
-                    Console.WriteLine($"Usage: {uniqueResult.UsageCount}");
-                    Console.WriteLine($"Time remaining: {uniqueResult.TimeRemaining}");
+                    Console.WriteLine($"Usage: {usageCount}");
+                    Console.WriteLine($"Time remaining: {timeRemaining}");
                     Console.ResetColor();
                     
                     // FORMAT TIME REMAINING IN HUMAN-READABLE FORMAT
                     string timeMessage = "";
-                    if (uniqueResult.TimeRemaining.HasValue)
+                    if (timeRemaining.HasValue)
                     {
-                        var timeSpan = uniqueResult.TimeRemaining.Value;
+                        var timeSpan = timeRemaining.Value;
                         var hours = (int)timeSpan.TotalHours;
                         var minutes = timeSpan.Minutes;
                         var seconds = timeSpan.Seconds;
@@ -124,16 +114,13 @@ namespace ContactForm.MinimalAPI.Services
                     
                     throw new InvalidOperationException(
                         $"This email has already been used to send a message recently. " +
-                        $"You can send another message in {timeMessage} (Usage: {uniqueResult.UsageCount})"
+                        $"You can send another message in {timeMessage} (Usage: {usageCount})"
                     );
                 }
 
                 // VALIDATE SMTP CONFIG FIRST
                 var config = GetSmtpConfigById(smtpId);
-                if (config == null)
-                {
-                    throw new InvalidOperationException($"SMTP configuration with ID {smtpId} not found");
-                }
+                ArgumentNullException.ThrowIfNull(config);
 
                 // CREATE EMAIL MESSAGE
                 var email = new MimeMessage();
@@ -158,7 +145,7 @@ namespace ContactForm.MinimalAPI.Services
                         .Replace("{Message}", request.Message);
 
                     // REPLACE CUSTOM FIELDS IN SUBJECT
-                    if (request.CustomFields?.Any() == true)
+                    if (request.CustomFields?.Count > 0)
                     {
                         foreach (var field in request.CustomFields)
                         {
@@ -222,7 +209,7 @@ namespace ContactForm.MinimalAPI.Services
                             """;
 
                     // ADD CUSTOM FIELDS IF ANY
-                    if (request.CustomFields?.Any() == true)
+                    if (request.CustomFields?.Count > 0)
                     {
                         bodyText += request.IsHtml ? "<h3>Custom Fields:</h3><ul>" : "\nCustom Fields:";
                         foreach (var field in request.CustomFields)
@@ -248,7 +235,7 @@ namespace ContactForm.MinimalAPI.Services
                         .Replace("{Message}", request.Message);
 
                     // REPLACE CUSTOM FIELDS IN TEMPLATE
-                    if (request.CustomFields?.Any() == true)
+                    if (request.CustomFields?.Count > 0)
                     {
                         foreach (var field in request.CustomFields)
                         {
@@ -268,7 +255,7 @@ namespace ContactForm.MinimalAPI.Services
                 }
 
                 // ADD ATTACHMENTS IF ANY
-                if (request.Attachments?.Any() == true)
+                if (request.Attachments?.Count > 0)
                 {
                     foreach (var attachment in request.Attachments)
                     {
@@ -285,12 +272,12 @@ namespace ContactForm.MinimalAPI.Services
                         }
                         catch (FormatException ex)
                         {
-                            _logger.LogError($"Invalid Base64 content for attachment {attachment.FileName}: {ex.Message}");
+                            _logger.LogError(ex, "Invalid Base64 content for attachment {FileName}", attachment.FileName);
                             throw new InvalidOperationException($"Invalid Base64 content for attachment {attachment.FileName}");
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError($"Failed to add attachment {attachment.FileName}: {ex.Message}");
+                            _logger.LogError(ex, "Failed to add attachment {FileName}", attachment.FileName);
                             throw new InvalidOperationException($"Failed to process attachment {attachment.FileName}");
                         }
                     }

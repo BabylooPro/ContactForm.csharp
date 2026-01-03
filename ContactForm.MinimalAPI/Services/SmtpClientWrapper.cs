@@ -53,10 +53,7 @@ namespace ContactForm.MinimalAPI.Services
         // THROW ERROR IF DISPOSED
         private void ThrowIfDisposed()
         {
-            if (_disposed)
-            {
-                throw new ObjectDisposedException(nameof(SmtpClientWrapper));
-            }
+            ObjectDisposedException.ThrowIf(_disposed, this);
         }
 
         // DISPOSE
@@ -70,6 +67,7 @@ namespace ContactForm.MinimalAPI.Services
                 }
                 _smtpClient.Dispose();
                 _disposed = true;
+                GC.SuppressFinalize(this);
             }
         }
     }

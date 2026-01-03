@@ -4,7 +4,6 @@ using ContactForm.MinimalAPI.Controllers;
 using ContactForm.MinimalAPI.Interfaces;
 using ContactForm.MinimalAPI.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
@@ -15,18 +14,15 @@ namespace ContactForm.Tests.ControllersTests
     public class EmailControllerTests
     {
         private readonly Mock<IEmailService> _emailServiceMock;
-        private readonly Mock<ILogger<EmailController>> _loggerMock;
         private readonly EmailController _controller;
 
         public EmailControllerTests()
         {
             _emailServiceMock = new Mock<IEmailService>();
-            _loggerMock = new Mock<ILogger<EmailController>>();
             var smtpSettingsMock = new Mock<IOptions<SmtpSettings>>();
             smtpSettingsMock.Setup(x => x.Value).Returns(new SmtpSettings());
             _controller = new EmailController(
                 _emailServiceMock.Object,
-                _loggerMock.Object,
                 smtpSettingsMock.Object
             );
         }

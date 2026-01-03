@@ -12,7 +12,7 @@ namespace ContactForm.MinimalAPI.Models
 
     public class SmtpSettings
     {
-        public List<SmtpConfig> Configurations { get; set; } = new();
+        public List<SmtpConfig> Configurations { get; set; } = [];
         public string ReceptionEmail { get; set; } = string.Empty;
         public string CatchAllEmail { get; set; } = string.Empty;
     }

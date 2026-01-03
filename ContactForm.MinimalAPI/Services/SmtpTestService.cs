@@ -13,21 +13,11 @@ using Microsoft.Extensions.Logging;
 
 namespace ContactForm.MinimalAPI.Services
 {
-    public class SmtpTestService : ISmtpTestService
+    public class SmtpTestService(ILogger<SmtpTestService> logger, IServiceProvider serviceProvider) : ISmtpTestService
     {
-        private readonly ILogger<SmtpTestService> _logger;
-        private readonly IServiceProvider _serviceProvider;
-        private readonly List<SmtpConfig> _smtpConfigs;
-
-        // CONSTRUCTOR
-        public SmtpTestService(ILogger<SmtpTestService> logger, IServiceProvider serviceProvider)
-        {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-
-            // LOAD SMTP CONFIGURATIONS FROM ENVIRONMENT VARIABLE
-            _smtpConfigs = EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
-        }
+        private readonly ILogger<SmtpTestService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        private readonly IServiceProvider _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        private readonly List<SmtpConfig> _smtpConfigs = EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
 
         // TEST SMTP CONNECTIONS
         public async Task TestSmtpConnections()
@@ -73,16 +63,14 @@ namespace ContactForm.MinimalAPI.Services
                 }
 
                 // SHUFFLE CONFIG TO AVOID PATTERNS IN TESTING
-                shuffledConfigs = shuffledConfigs.OrderBy(_ => Guid.NewGuid()).ToList();
+                shuffledConfigs = [.. shuffledConfigs.OrderBy(_ => Guid.NewGuid())];
 
                 // TEST EACH CONFIG INDEPENDENTLY
                 foreach (var (config, isTest) in shuffledConfigs)
                 {
                     // CREATE NEW CLIENT FOR EACH TEST
-                    using (var smtpClient = new Services.SmtpClientWrapper())
-                    {
-                        await TestSmtpConnection(config, smtpClient, results, isTest);
-                    }
+                    using var smtpClient = new Services.SmtpClientWrapper();
+                    await TestSmtpConnection(config, smtpClient, results, isTest);
                 }
 
                 // COMPLETE TESTS
@@ -151,7 +139,7 @@ namespace ContactForm.MinimalAPI.Services
         }
 
         // METHODE TO TEST AN SMPT CONNECTIONS
-        private async Task TestSmtpConnection(SmtpConfig smtp, ISmtpClientWrapper smtpClient, List<(bool success, string message, long duration)> results, bool isTestEmail)
+        private async Task TestSmtpConnection(SmtpConfig smtp, SmtpClientWrapper smtpClient, List<(bool success, string message, long duration)> results, bool isTestEmail)
         {
             var testStopwatch = System.Diagnostics.Stopwatch.StartNew();
             var emailToUse = isTestEmail ? smtp.TestEmail : smtp.Email;
@@ -210,12 +198,12 @@ namespace ContactForm.MinimalAPI.Services
                 ));
 
                 // LOG DETAILED ERROR FOR DEBUGGING
-                _logger.LogDebug(ex, $"SMTP connection test failed for {emailToUse} on {smtp.Host}:{smtp.Port}");
+                _logger.LogDebug(ex, "SMTP connection test failed for {EmailToUse} on {Host}:{Port}", emailToUse, smtp.Host, smtp.Port);
             }
         }
 
         // GET USER-FRIENDLY ERROR MESSAGE BASED ON EXECPETION TYPE AND CONTENT
-        private string GetUserFriendlyErrorMessage(Exception ex, SmtpConfig config, string emailAdress)
+        private static string GetUserFriendlyErrorMessage(Exception ex, SmtpConfig config, string emailAdress)
         {
             string exMessage = ex.Message;
 
