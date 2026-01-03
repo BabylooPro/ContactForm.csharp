@@ -69,40 +69,44 @@ namespace ContactForm.Tests.IntegrationTests
             _client = _server.CreateClient();
         }
 
+        // VERIFY BASE SECURITY HEADERS FOR ALL REQUESTS
+        private static void VerifySecurityHeaders(HttpResponseMessage response)
+        {
+            Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").FirstOrDefault());
+            Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").FirstOrDefault());
+            Assert.Equal("1; mode=block", response.Headers.GetValues("X-XSS-Protection").FirstOrDefault());
+            Assert.Equal("strict-origin-when-cross-origin", response.Headers.GetValues("Referrer-Policy").FirstOrDefault());
+            Assert.Contains("default-src 'self'", response.Headers.GetValues("Content-Security-Policy").FirstOrDefault());
+        }
+
         // TEST FOR CHECKING IF ALL HTTP METHODS HAVE SECURITY HEADERS
         [Theory]
-        [InlineData("GET")]
-        [InlineData("POST")]
-        [InlineData("PUT")]
-        [InlineData("DELETE")]
+        [InlineData("GET"), InlineData("POST"), InlineData("PUT"), InlineData("DELETE")]
         public async Task AllHttpMethods_HaveSecurityHeaders(string httpMethod)
         {
-            // ARRANGE - CREATE A NEW HTTP REQUEST MESSAGE
+            // ARRANGE - CREATE REQUEST
             var request = new HttpRequestMessage(new HttpMethod(httpMethod), "/api/methods-test");
 
-            // ACT - SEND THE HTTP REQUEST MESSAGE
+            // ACT - SEND REQUEST
             var response = await _client.SendAsync(request);
 
-            // ASSERT - CHECK IF THE RESPONSE STATUS CODE IS OK
+            // ASSERT - STATUS OK, HEADERS OK
             Assert.Equal(200, (int)response.StatusCode);
             VerifySecurityHeaders(response);
         }
 
         // TEST FOR CHECKING IF ALL ROUTES HAVE SECURITY HEADERS
         [Theory]
-        [InlineData("/api/admin")]
-        [InlineData("/api/public")]
-        [InlineData("/")]
-        [InlineData("/api/routes-test")]
+        [InlineData("/api/admin"), InlineData("/api/public"), InlineData("/"), InlineData("/api/routes-test")]
         public async Task AllRoutes_HaveSecurityHeaders(string route)
         {
-            // ARRANGE
+            // ARRANGE - CREATE REQUEST
             var request = new HttpRequestMessage(HttpMethod.Get, route);
 
-            // ACT
+            // ACT - SEND REQUEST
             var response = await _client.SendAsync(request);
 
-            // ASSERT
+            // ASSERT - STATUS, HEADERS
             Assert.Equal(200, (int)response.StatusCode);
             VerifySecurityHeaders(response);
         }
@@ -111,20 +115,18 @@ namespace ContactForm.Tests.IntegrationTests
         [Fact]
         public async Task Routes_WithAuthentication_HaveStricterSecurityHeaders()
         {
-            // ARRANGE - CREATE A NEW HTTP REQUEST MESSAGE
+            // ARRANGE - CREATE REQUEST
             var request = new HttpRequestMessage(HttpMethod.Get, "/api/auth");
             request.Headers.Add("Authorization", "Bearer test-token");
 
-            // ACT - SEND THE HTTP REQUEST MESSAGE
+            // ACT - SEND REQUEST
             var response = await _client.SendAsync(request);
 
-            // ASSERT - CHECK IF THE RESPONSE STATUS CODE IS OK
+            // ASSERT - STATUS OK
             Assert.Equal(200, (int)response.StatusCode);
-            
-            // ASSERT - VERIFY NORMAL SECURITY HEADERS
+            // ASSERT - SECURITY HEADERS
             VerifySecurityHeaders(response);
-            
-            // ASSERT - VERIFY ADDITIONAL STRICTER HEADERS FOR AUTHENTICATED ROUTES
+            // ASSERT - STRICTER HEADERS
             Assert.Equal("same-origin", response.Headers.GetValues("Cross-Origin-Opener-Policy").FirstOrDefault());
             Assert.Equal("same-origin", response.Headers.GetValues("Cross-Origin-Embedder-Policy").FirstOrDefault());
         }
@@ -137,36 +139,26 @@ namespace ContactForm.Tests.IntegrationTests
         [InlineData("curl/7.68.0", "cli")]
         public async Task DifferentUserAgents_ReceiveCorrectSecurityHeaders(string? userAgent, string clientType)
         {
-            // ARRANGE - CREATE A NEW HTTP REQUEST MESSAGE
+            // ARRANGE - BUILD REQUEST
             var request = new HttpRequestMessage(HttpMethod.Get, $"/api/client-type/{clientType}");
             if (userAgent != null)
             {
                 request.Headers.Add("User-Agent", userAgent);
             }
 
-            // ACT - SEND THE HTTP REQUEST MESSAGE
+            // ACT - SEND REQUEST
             var response = await _client.SendAsync(request);
 
-            // ASSERT - CHECK IF THE RESPONSE STATUS CODE IS OK
+            // ASSERT - STATUS OK
             Assert.Equal(200, (int)response.StatusCode);
+            // ASSERT - SECURITY HEADERS
             VerifySecurityHeaders(response);
-            
-            // ASSERT - API CLIENTS MAY RECEIVE DIFFERENT CACHE CONTROL DIRECTIVES
+
+            // ASSERT - CACHE CONTROL
             if (clientType == "api-client" || clientType == "cli")
             {
                 Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
             }
-        }
-
-        // VERIFY THE SECURITY HEADERS
-        private static void VerifySecurityHeaders(HttpResponseMessage response)
-        {
-            // ASSERT - VERIFY BASE SECURITY HEADERS
-            Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").FirstOrDefault());
-            Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").FirstOrDefault());
-            Assert.Equal("1; mode=block", response.Headers.GetValues("X-XSS-Protection").FirstOrDefault());
-            Assert.Equal("strict-origin-when-cross-origin", response.Headers.GetValues("Referrer-Policy").FirstOrDefault());
-            Assert.Contains("default-src 'self'", response.Headers.GetValues("Content-Security-Policy").FirstOrDefault());
         }
     }
 } 

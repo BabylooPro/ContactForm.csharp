@@ -117,7 +117,7 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public async Task SendEmailAsync_WithTemplate_ReturnsTrue()
         {
-            // ARRANGE
+            // ARRANGE - CREATE REQUEST
             var request = new EmailRequest
             {
                 Email = "sender@example.com",
@@ -126,10 +126,10 @@ namespace ContactForm.Tests.ServicesTests
                 Template = PredefinedTemplate.Modern,
             };
 
-            // ACT
+            // ACT - SEND EMAIL
             var result = await _emailService.SendEmailAsync(request, 0);
 
-            // ASSERT
+            // ASSERT - VERIFY RESULT
             Assert.True(result);
             _templateServiceMock.Verify(x => x.GetTemplate(PredefinedTemplate.Modern), Times.Once);
         }
@@ -138,7 +138,7 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public async Task SendEmailAsync_ValidRequest_ReturnsTrue()
         {
-            // ARRANGE - CREATING EMAIL REQUEST
+            // ARRANGE - CREATE REQUEST
             var request = new EmailRequest
             {
                 Email = "sender@example.com",
@@ -146,10 +146,10 @@ namespace ContactForm.Tests.ServicesTests
                 Message = "Test message",
             };
 
-            // ACT - SENDING EMAIL
+            // ACT - SEND EMAIL
             var result = await _emailService.SendEmailAsync(request, 0);
 
-            // ASSERT - CHECKING IF EMAIL IS SENT SUCCESSFULLY
+            // ASSERT - VERIFY SUCCESS
             Assert.True(result);
             _smtpClientMock.Verify(
                 x => x.SendWithTokenAsync(It.IsAny<MimeMessage>(), It.IsAny<CancellationToken>()),
@@ -161,7 +161,7 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public async Task SendEmailAsync_InvalidSmtpId_ThrowsException()
         {
-            // ARRANGE - CREATING EMAIL REQUEST
+            // ARRANGE - CREATE REQUEST
             var request = new EmailRequest
             {
                 Email = "sender@example.com",
@@ -169,10 +169,8 @@ namespace ContactForm.Tests.ServicesTests
                 Message = "Test message",
             };
 
-            // ACT & ASSERT - CHECKING IF EXCEPTION IS THROWN WHEN SMTP CONFIG IS NOT FOUND
-            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-                () => _emailService.SendEmailAsync(request, 999)
-            );
+            // ACT & ASSERT - THROW IF CONFIG MISSING
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => _emailService.SendEmailAsync(request, 999));
             Assert.Contains("SMTP_999 configuration not found", exception.Message);
         }
 
@@ -180,7 +178,7 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public async Task SendEmailAsync_WithRegularEmail_ReturnsFalse()
         {
-            // ARRANGE
+            // ARRANGE - CREATE REQUEST
             var request = new EmailRequest
             {
                 Email = "sender@example.com",
@@ -188,10 +186,10 @@ namespace ContactForm.Tests.ServicesTests
                 Message = "Test message",
             };
 
-            // ACT
+            // ACT - SEND EMAIL
             var result = await _emailService.SendEmailAsync(request, 0, false);
 
-            // ASSERT
+            // ASSERT - VERIFY AUTH
             Assert.True(result);
             _smtpClientMock.Verify(
                 x =>
@@ -208,7 +206,7 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public async Task SendEmailAsync_WithTestEmail_ReturnsTrue()
         {
-            // ARRANGE
+            // ARRANGE - CREATE REQUEST
             var request = new EmailRequest
             {
                 Email = "sender@example.com",
@@ -216,18 +214,17 @@ namespace ContactForm.Tests.ServicesTests
                 Message = "Test message",
             };
 
-            // ACT
+            // ACT - SEND EMAIL
             var result = await _emailService.SendEmailAsync(request, 0, true);
 
-            // ASSERT
+            // ASSERT - VERIFY RESULT
             Assert.True(result);
             _smtpClientMock.Verify(
-                x =>
-                    x.AuthenticateWithTokenAsync(
-                        "test-email@example.com",
-                        "test-password-test",
-                        It.IsAny<CancellationToken>()
-                    ),
+                x => x.AuthenticateWithTokenAsync(
+                    "test-email@example.com",
+                    "test-password-test",
+                    It.IsAny<CancellationToken>()
+                ),
                 Times.Once
             );
         }
@@ -236,10 +233,10 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public void GetSmtpConfigById_ValidId_ReturnsConfig()
         {
-            // ACT - GETTING SMTP CONFIG BY ID
+            // ACT - GET CONFIG
             var config = _emailService.GetSmtpConfigById(0);
 
-            // ASSERT - CHECKING IF SMTP CONFIG IS RETURNED
+            // ASSERT - CHECK RETURNED CONFIG
             Assert.NotNull(config);
             Assert.Equal("smtp.hostinger.com", config.Host);
         }
@@ -248,10 +245,10 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public void GetSmtpConfigById_InvalidId_ThrowsException()
         {
-            // ACT & ASSERT - CHECKING IF EXCEPTION IS THROWN WHEN SMTP CONFIG IS NOT FOUND
-            var exception = Assert.Throws<InvalidOperationException>(
-                () => _emailService.GetSmtpConfigById(999)
-            );
+            // ACT - THROW EXCEPTION
+            var exception = Assert.Throws<InvalidOperationException>(() => _emailService.GetSmtpConfigById(999));
+
+            // ASSERT - CHECK MESSAGE
             Assert.Contains("SMTP_999 configuration not found", exception.Message);
         }
 
@@ -259,11 +256,13 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public void GetAllSmtpConfigs_ReturnsAllConfigs()
         {
-            // ACT - GETTING ALL SMTP CONFIGS
+            // ACT - GET ALL
             var configs = _emailService.GetAllSmtpConfigs();
 
-            // ASSERT - CHECKING IF ALL SMTP CONFIGS ARE RETURNED
+            // ASSERT - CHECK COUNT
             Assert.Single(configs);
+
+            // ASSERT - CHECK HOST
             Assert.Equal("smtp.hostinger.com", configs[0].Host);
         }
     }

@@ -21,30 +21,30 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public async Task TrackRequest_WithManySimultaneousRequests_HandlesCorrectly()
         {
-            // ARRANGE - CREATE A NEW SERVICE COMPLETELY ISOLATED FOR THIS TEST
+            // ARRANGE - ISOLATED SERVICE
             var isolatedLoggerMock = new Mock<ILogger<IpProtectionService>>();
             var isolatedService = new IpProtectionService(isolatedLoggerMock.Object);
-            
-            var ipAddresses = new[] { "255.255.255.100", "255.255.255.101", "255.255.255.102" }; // COMPLETELY DIFFERENT IPS
-            const int requestsPerIp = 5; // WELL BELOW THE BURST THRESHOLD (20)
-            const int concurrentTasks = 1; // ONE TASK TO AVOID PROBLEMS
-            
-            // ACT - ONE TASK THAT SENDS REQUESTS SEQUENTIALLY
+
+            // ARRANGE - TEST IPS
+            var ipAddresses = new[] { "255.255.255.100", "255.255.255.101", "255.255.255.102" };
+            const int requestsPerIp = 5;
+            const int concurrentTasks = 1;
+
+            // ACT - SEQUENTIAL REQUESTS
             for (int taskId = 0; taskId < concurrentTasks; taskId++)
             {
                 for (int j = 0; j < requestsPerIp; j++)
                 {
                     foreach (var ip in ipAddresses)
                     {
-                        // USE A DIFFERENT PATH FOR EACH REQUEST
+                        // ACT - UNIQUE PATH, WAIT 50MS
                         isolatedService.TrackRequest(ip, $"/test-unique-{Guid.NewGuid()}", "Test User Agent");
-                        // WAIT 50MS BETWEEN EACH REQUEST TO AVOID ANY RISK OF BURST
                         await Task.Delay(50);
                     }
                 }
             }
-            
-            // ASSERT - ALL IPS SHOULD BE ALLOWED
+
+            // ASSERT - ALL IPS ALLOWED
             foreach (var ip in ipAddresses)
             {
                 Assert.False(isolatedService.IsIpBlocked(ip), $"IP {ip} was incorrectly blocked");
@@ -56,11 +56,11 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public async Task TrackRequest_WithBurstFromOneIp_BlocksOnlyThatIp()
         {
-            // ARRANGE - SETUP THE TEST ENVIRONMENT
+            // ARRANGE - DEFINE IPS
             var normalIps = new[] { "192.168.1.200", "192.168.1.201" };
             var attackerIp = "192.168.1.202";
-            
-            // ACT - SIMULATE NORMAL TRAFFIC FROM SOME IPS
+
+            // ACT - NORMAL TRAFFIC
             var normalTrafficTask = Task.Run(() =>
             {
                 for (int i = 0; i < 10; i++)
@@ -72,8 +72,8 @@ namespace ContactForm.Tests.ServicesTests
                     }
                 }
             });
-            
-            // SIMULATE ATTACK TRAFFIC (BURST) FROM ONE IP
+
+            // ACT - ATTACK BURST
             var attackTrafficTask = Task.Run(() =>
             {
                 for (int i = 0; i < 25; i++)
@@ -81,16 +81,16 @@ namespace ContactForm.Tests.ServicesTests
                     _service.TrackRequest(attackerIp, "/contact", "Attacker User Agent");
                 }
             });
-            
-            // WAIT FOR BOTH TRAFFIC PATTERNS TO COMPLETE
+
+            // ACT - WAIT TASKS
             await Task.WhenAll(normalTrafficTask, attackTrafficTask);
-            
-            // ASSERT - ONLY THE ATTACKER IP SHOULD BE BLOCKED
+
+            // ASSERT - ONLY ATTACKER BLOCKED
             foreach (var ip in normalIps)
             {
                 Assert.False(_service.IsIpBlocked(ip), $"Normal IP {ip} was incorrectly blocked");
             }
-            
+
             Assert.True(_service.IsIpBlocked(attackerIp), "Attacker IP should have been blocked");
         }
 
@@ -98,13 +98,13 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public void BlockIp_AndIsIpBlocked_AreThreadSafe()
         {
-            // ARRANGE - SETUP THE TEST ENVIRONMENT
+            // ARRANGE - INIT VARS
             const int iterations = 1000;
             var ips = Enumerable.Range(0, 100).Select(i => $"10.0.0.{i}").ToArray();
             var random = new Random();
             var exceptions = new List<Exception>();
-            
-            // ACT - RUN MANY BLOCKING AND CHECKING OPERATIONS IN PARALLEL
+
+            // ACT - PARALLEL OPS
             Parallel.For(0, iterations, i =>
             {
                 try
@@ -117,12 +117,12 @@ namespace ContactForm.Tests.ServicesTests
                     }
                     else if (i % 3 == 1)
                     {
-                        // CHECK IF BLOCKED
+                        // CHECK BLOCKED
                         _service.IsIpBlocked(randomIp);
                     }
                     else
                     {
-                        // TRACK REQUEST
+                        // TRACK REQ
                         _service.TrackRequest(randomIp, "/test", "Test User Agent");
                     }
                 }
@@ -134,8 +134,8 @@ namespace ContactForm.Tests.ServicesTests
                     }
                 }
             });
-            
-            // ASSERT - NO EXCEPTIONS SHOULD HAVE BEEN THROWN
+
+            // ASSERT - NO EXCEPTION
             Assert.Empty(exceptions);
             if (exceptions.Count > 0)
             {
@@ -147,35 +147,29 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public void CleanupExpiredEntries_DoesNotAffectOngoingOperations()
         {
-            // ARRANGE - SETUP THE TEST ENVIRONMENT
+            // ARRANGE - INIT VARS
             const int ipCount = 100;
             var ips = Enumerable.Range(0, ipCount).Select(i => $"172.16.0.{i}").ToArray();
-            
-            // BLOCK SOME IPS WITH DIFFERENT EXPIRATION TIMES
+
+            // ARRANGE - BLOCK IPS
             for (int i = 0; i < ipCount; i++)
             {
-                // BLOCK HALF WITH SHORT EXPIRATION, HALF WITH LONG EXPIRATION
-                var duration = i < ipCount / 2 
-                    ? TimeSpan.FromMilliseconds(50) 
-                    : TimeSpan.FromHours(1);
-                
+                var duration = i < ipCount / 2 ? TimeSpan.FromMilliseconds(50) : TimeSpan.FromHours(1);
                 _service.BlockIp(ips[i], duration, "Test block");
             }
-            
-            // WAIT FOR SOME BLOCKS TO EXPIRE
+
+            // ARRANGE - WAIT EXPIRE
             Thread.Sleep(100);
-            
-            // ACT - RUN CONCURRENT OPERATIONS WHILE CLEANUP MIGHT BE HAPPENING
+
+            // ACT - PARALLEL OPS
             var results = new bool[ipCount];
             Parallel.For(0, ipCount, i =>
             {
                 results[i] = _service.IsIpBlocked(ips[i]);
-                
-                // ALSO TRACK SOME REQUESTS AT THE SAME TIME
                 _service.TrackRequest(ips[i], "/test", "Test User Agent");
             });
-            
-            // ASSERT - FIRST HALF SHOULD BE UNBLOCKED (EXPIRED), SECOND HALF STILL BLOCKED
+
+            // ASSERT - CHECK BLOCKED
             for (int i = 0; i < ipCount; i++)
             {
                 if (i < ipCount / 2)

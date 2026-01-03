@@ -9,6 +9,8 @@ namespace ContactForm.Tests.IntegrationTests
         private readonly TestServer _server;
         private readonly HttpClient _client;
 
+        private static readonly string[] AllowedOrigins = ["https://example.com", "http://localhost:3000", "https://example.org"];
+
         public SecurityHeadersTests()
         {
             // SETUP TEST SERVER
@@ -107,13 +109,13 @@ namespace ContactForm.Tests.IntegrationTests
         [Fact]
         public async Task Request_ReturnsSecurityHeaders()
         {
-            // ARRANGE & ACT - GET THE TEST ENDPOINT
+            // ARRANGE & ACT - REQUEST TEST ENDPOINT
             var response = await _client.GetAsync("/test");
 
-            // ASSERT - CHECK IF THE RESPONSE STATUS CODE IS OK
+            // ASSERT - STATUS CODE OK
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            
-            // ASSERT - CHECK SECURITY HEADERS, CHECK IF THE HEADERS ARE SET CORRECTLY
+
+            // ASSERT - SECURITY HEADERS
             Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").FirstOrDefault());
             Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").FirstOrDefault());
             Assert.Equal("1; mode=block", response.Headers.GetValues("X-XSS-Protection").FirstOrDefault());
@@ -125,28 +127,29 @@ namespace ContactForm.Tests.IntegrationTests
         [Fact]
         public async Task Request_WithAllowedOrigin_HasCorsHeaders()
         {
-            // ARRANGE - CREATE A NEW HTTP REQUEST MESSAGE
+            // ARRANGE - PREPARE REQUEST
             var request = new HttpRequestMessage(HttpMethod.Options, "/test");
             request.Headers.Add("Origin", "https://example.com");
             request.Headers.Add("Access-Control-Request-Method", "GET");
 
-            // ACT - SEND THE HTTP REQUEST MESSAGE
+            // ACT - SEND REQUEST
             var response = await _client.SendAsync(request);
 
-            // ASSERT - CHECK IF THE RESPONSE STATUS CODE IS NO CONTENT
+            // ASSERT - EXPECT NO CONTENT
             Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
 
-            // DEBUG - PRINT THE RESPONSE HEADERS
+            // DEBUG - GET HEADER NAMES
             var headerNames = string.Join(", ", response.Headers.Select(h => h.Key));
             
-            // ASSERT - CHECK IF THE ACCESS CONTROL ALLOW ORIGIN HEADER EXISTS
+            // ASSERT - HAS ALLOW ORIGIN
             Assert.True(response.Headers.Contains("Access-Control-Allow-Origin"), 
                 $"Access-Control-Allow-Origin header not found. Available headers: {headerNames}");
-            
             Assert.Contains("https://example.com", response.Headers.GetValues("Access-Control-Allow-Origin").FirstOrDefault());
+
+            // ASSERT - ALLOW METHODS
             Assert.Contains("GET", response.Headers.GetValues("Access-Control-Allow-Methods").FirstOrDefault());
-            
-            // ASSERT - CHECK IF THE EXPOSED HEADERS CONTAIN THE CORRECT HEADERS
+
+            // ASSERT - EXPOSE HEADERS VALUES
             var exposedHeaders = response.Headers.GetValues("Access-Control-Expose-Headers").FirstOrDefault();
             Assert.Contains("Content-Type", exposedHeaders);
             Assert.Contains("Authorization", exposedHeaders);
@@ -157,21 +160,19 @@ namespace ContactForm.Tests.IntegrationTests
         [Fact]
         public async Task Request_WithDisallowedOrigin_HasNoCorsHeaders()
         {
-            // ARRANGE - CREATE A NEW HTTP REQUEST MESSAGE
+            // ARRANGE - SETUP REQUEST
             var request = new HttpRequestMessage(HttpMethod.Options, "/test");
             request.Headers.Add("Origin", "https://malicious-site.com");
             request.Headers.Add("Access-Control-Request-Method", "GET");
 
-            // ACT - SEND THE HTTP REQUEST MESSAGE
+            // ACT - SEND REQUEST
             var response = await _client.SendAsync(request);
 
-            // ASSERT - CHECK IF THE RESPONSE STATUS CODE IS NO CONTENT
+            // ASSERT - CHECK STATUS
             Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-            
-            // ASSERT - CHECK IF THE ACCESS CONTROL ALLOW ORIGIN HEADER DOES NOT CONTAIN ALLOWING HEADERS FOR DISALLOWED ORIGIN
+
+            // ASSERT - NO CORS HEADER
             Assert.DoesNotContain("Access-Control-Allow-Origin", response.Headers.Select(h => h.Key));
         }
-
-        private static readonly string[] AllowedOrigins = ["https://example.com", "http://localhost:3000", "https://example.org"];
     }
 } 

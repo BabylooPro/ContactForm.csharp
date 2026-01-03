@@ -48,19 +48,16 @@ namespace ContactForm.Tests.IntegrationTests
         [Fact]
         public async Task Request_WithMismatchedXForwardedForHeader_IsDetectedAsSpoofing()
         {
-            // ARRANGE - CREATE A NEW HTTP REQUEST MESSAGE
+            // ARRANGE - CREATE REQUEST AND ADD HEADERS
             var request = new HttpRequestMessage(HttpMethod.Get, "/api/test");
-            
-            // ADD SUSPICIOUS HEADERS (MISMATCHED IP ADDRESSES)
-            request.Headers.Add("X-Forwarded-For", "1.2.3.4, 5.6.7.8"); // SHOULD MATCH CONNECTION IP
-            request.Headers.Add("X-Real-IP", "9.10.11.12"); // DIFFERENT IP
-            
-            // ACT - SEND THE HTTP REQUEST MESSAGE
+            request.Headers.Add("X-Forwarded-For", "1.2.3.4, 5.6.7.8");
+            request.Headers.Add("X-Real-IP", "9.10.11.12");
+
+            // ACT - SEND REQUEST
             var response = await _client.SendAsync(request);
-            
-            // ASSERT - CHECK IF THE RESPONSE STATUS CODE IS FORBIDDEN
+
+            // ASSERT - FORBIDDEN STATUS AND RESPONSE CONTAINS SUSPICIOUS
             Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-            
             var responseContent = await response.Content.ReadAsStringAsync();
             Assert.Contains("suspicious", responseContent.ToLower());
         }
@@ -69,16 +66,13 @@ namespace ContactForm.Tests.IntegrationTests
         [Fact]
         public async Task Request_WithValidHeaders_IsAllowed()
         {
-            // ARRANGE - CREATE A NEW HTTP REQUEST MESSAGE
-            var request = new HttpRequestMessage(HttpMethod.Get, "/api/test");
-            
-            // INFO: DO NOT ADD ANY HEADERS - MORE SECURE IN THE TEST ENVIRONMENT
-            // TestServer WILL SET THE CORRECT CONNECTION IP
-            
-            // ACT - SEND THE HTTP REQUEST MESSAGE
+            // ARRANGE - CREATE REQUEST
+            var request = new HttpRequestMessage(HttpMethod.Get, "/api/test"); // NO HEADERS
+
+            // ACT - SEND REQUEST
             var response = await _client.SendAsync(request);
-            
-            // ASSERT - CHECK IF THE RESPONSE STATUS CODE IS OK
+
+            // ASSERT - STATUS OK
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
 
@@ -86,27 +80,27 @@ namespace ContactForm.Tests.IntegrationTests
         [Fact]
         public async Task Request_WithSuspiciousUserAgent_IsLogged()
         {
-            // ARRANGE - CREATE A NEW HTTP REQUEST MESSAGE
+            // ARRANGE - CREATE REQUEST AND SET USER AGENT
             var request = new HttpRequestMessage(HttpMethod.Get, "/api/test");
-            
-            // ADD SUSPICIOUS USER AGENT
             request.Headers.Add("User-Agent", "SQLMAP/1.4");
-            
-            // ACT - SEND THE HTTP REQUEST MESSAGE
+
+            // ACT - SEND REQUEST
             var response = await _client.SendAsync(request);
-            
-            // ASSERT - CHECK IF THE RESPONSE STATUS CODE IS OK
+
+            // ASSERT - OK STATUS
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            
-            // VERIFY LOGGER WAS CALLED WITH WARNING
+
+            // ASSERT - LOGGER CALLED
             _loggerMock.Verify(
                 x => x.Log(
                     LogLevel.Warning,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("SQLMAP")),
                     It.IsAny<Exception?>(),
-                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-                Times.Once);
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()
+                ),
+                Times.Once
+            );
         }
     }
 
@@ -128,31 +122,26 @@ namespace ContactForm.Tests.IntegrationTests
             var realIp = context.Request.Headers["X-Real-IP"].ToString();
             
             // LOG ALL IPs FOR DEBUGGING
-            _logger.LogDebug("Connection IP: {ConnectionIp}, X-Forwarded-For: {ForwardedIp}, X-Real-IP: {RealIp}",
-                clientIp, forwardedIp, realIp);
+            _logger.LogDebug("Connection IP: {ConnectionIp}, X-Forwarded-For: {ForwardedIp}, X-Real-IP: {RealIp}", clientIp, forwardedIp, realIp);
             
             // CHECK FOR SUSPICIOUS MISMATCH
             bool isSuspicious = false;
             
-            // IN A TEST ENVIRONMENT, IF NO HEADERS ARE DEFINED, IT IS NORMAL
-            // OR IF THE IP IS LOCALHOST
-            bool isTestEnvironment = clientIp == "::1" || clientIp == "127.0.0.1" || 
-                (string.IsNullOrEmpty(forwardedIp) && string.IsNullOrEmpty(realIp));
+            // IN A TEST ENVIRONMENT, IF NO HEADERS ARE DEFINED, IT IS NORMAL OR IF THE IP IS LOCALHOST
+            bool isTestEnvironment = clientIp == "::1" || clientIp == "127.0.0.1" || (string.IsNullOrEmpty(forwardedIp) && string.IsNullOrEmpty(realIp));
                 
             // IF FORWARDED IP IS SET BUT DOESN'T MATCH CONNECTION IP
             if (!string.IsNullOrEmpty(forwardedIp) && !forwardedIp.Contains(clientIp) && !isTestEnvironment)
             {
                 isSuspicious = true;
-                _logger.LogWarning("Possible IP spoofing detected: X-Forwarded-For {ForwardedIp} doesn't match connection IP {ConnectionIp}",
-                    forwardedIp, clientIp);
+                _logger.LogWarning("Possible IP spoofing detected: X-Forwarded-For {ForwardedIp} doesn't match connection IP {ConnectionIp}", forwardedIp, clientIp);
             }
             
             // IF REAL IP IS SET BUT DOESN'T MATCH CONNECTION IP
             if (!string.IsNullOrEmpty(realIp) && realIp != clientIp && !isTestEnvironment)
             {
                 isSuspicious = true;
-                _logger.LogWarning("Possible IP spoofing detected: X-Real-IP {RealIp} doesn't match connection IP {ConnectionIp}",
-                    realIp, clientIp);
+                _logger.LogWarning("Possible IP spoofing detected: X-Real-IP {RealIp} doesn't match connection IP {ConnectionIp}", realIp, clientIp);
             }
             
             // CHECK FOR KNOWN MALICIOUS USER AGENTS
@@ -161,8 +150,7 @@ namespace ContactForm.Tests.IntegrationTests
             {
                 if (userAgent.Contains(suspiciousAgent, StringComparison.OrdinalIgnoreCase))
                 {
-                    _logger.LogWarning("Suspicious user agent detected: {UserAgent} from IP {ClientIp}", 
-                        userAgent, clientIp);
+                    _logger.LogWarning("Suspicious user agent detected: {UserAgent} from IP {ClientIp}", userAgent, clientIp);
                     break;
                 }
             }

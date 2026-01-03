@@ -18,13 +18,13 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public void IsIpBlocked_ReturnsFalse_ForNonBlockedIp()
         {
-            // ARRANGE - SETUP THE TEST ENVIRONMENT
+            // ARRANGE - DEFINE IP
             var ip = "192.168.1.1";
 
-            // ACT - CHECK IF THE IP IS BLOCKED
+            // ACT - CALL METHOD
             var result = _service.IsIpBlocked(ip);
 
-            // ASSERT - CHECK THE RESULT
+            // ASSERT - EXPECT FALSE
             Assert.False(result);
         }
 
@@ -32,14 +32,14 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public void IsIpBlocked_ReturnsTrue_ForBlockedIp()
         {
-            // ARRANGE - SETUP THE TEST ENVIRONMENT
+            // ARRANGE - DEFINE IP, BLOCK IP
             var ip = "192.168.1.2";
             _service.BlockIp(ip, TimeSpan.FromMinutes(10), "Test block");
 
-            // ACT - CHECK IF THE IP IS BLOCKED
+            // ACT - CHECK BLOCKED
             var result = _service.IsIpBlocked(ip);
 
-            // ASSERT - CHECK THE RESULT
+            // ASSERT - EXPECT TRUE
             Assert.True(result);
         }
 
@@ -47,17 +47,17 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public void IsIpBlocked_ReturnsFalse_ForExpiredBlock()
         {
-            // ARRANGE - SETUP THE TEST ENVIRONMENT
+            // ARRANGE - BLOCK IP
             var ip = "192.168.1.3";
             _service.BlockIp(ip, TimeSpan.FromMilliseconds(50), "Test block");
-            
-            // WAIT FOR THE BLOCK TO EXPIRE
+
+            // ARRANGE - WAIT EXPIRE
             Thread.Sleep(100);
 
-            // ACT - CHECK IF THE IP IS BLOCKED
+            // ACT - CHECK BLOCKED
             var result = _service.IsIpBlocked(ip);
 
-            // ASSERT - CHECK THE RESULT
+            // ASSERT - EXPECT FALSE
             Assert.False(result);
         }
 
@@ -65,16 +65,16 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public void TrackRequest_BlocksIp_WhenBurstThresholdExceeded()
         {
-            // ARRANGE - SETUP THE TEST ENVIRONMENT
+            // ARRANGE - DEFINE IP
             var ip = "192.168.1.4";
             
-            // ACT - SUBMIT MANY REQUESTS IN A SHORT TIME
-            for (int i = 0; i < 21; i++) // EXCEEDING THE BURST_THRESHOLD OF 20
+            // ACT - MANY REQUESTS
+            for (int i = 0; i < 21; i++)
             {
                 _service.TrackRequest(ip, "/test", "Test User Agent");
             }
 
-            // ASSERT - CHECK IF THE IP IS BLOCKED
+            // ASSERT - IP BLOCKED
             Assert.True(_service.IsIpBlocked(ip));
         }
 
@@ -82,22 +82,22 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public void TrackRequest_BlocksIp_WhenTotalThresholdExceeded()
         {
-            // ARRANGE - SETUP THE TEST ENVIRONMENT
+            // ARRANGE - DEFINE IP
             var ip = "192.168.1.5";
             
-            // ACT - SUBMIT REQUESTS BUT AVOID BURST DETECTION
-            for (int i = 0; i < 101; i++) // EXCEEDING TOTAL_THRESHOLD OF 100
+            // ACT - SEND REQUESTS
+            for (int i = 0; i < 101; i++) // EXCEED TOTAL
             {
                 _service.TrackRequest(ip, "/test", "Test User Agent");
                 
-                // ADD A SMALL DELAY TO AVOID BURST DETECTION
+                // AVOID BURST
                 if (i % 5 == 0)
                 {
                     Thread.Sleep(10);
                 }
             }
 
-            // ASSERT - CHECK IF THE IP IS BLOCKED
+            // ASSERT - IP BLOCKED
             Assert.True(_service.IsIpBlocked(ip));
         }
 
@@ -105,17 +105,17 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public void TrackRequest_DoesNotBlockIp_ForValidTraffic()
         {
-            // ARRANGE - SETUP THE TEST ENVIRONMENT
+            // ARRANGE - INIT IP
             var ip = "192.168.1.6";
             
-            // ACT - SUBMIT REQUESTS AT NORMAL RATE
+            // ACT - NORMAL TRAFFIC
             for (int i = 0; i < 10; i++)
             {
                 _service.TrackRequest(ip, "/test", "Test User Agent");
-                Thread.Sleep(50); // SPACE OUT REQUESTS
+                Thread.Sleep(50); // SPACED CALLS
             }
 
-            // ASSERT - CHECK IF THE IP IS NOT BLOCKED
+            // ASSERT - NOT BLOCKED
             Assert.False(_service.IsIpBlocked(ip));
         }
 
@@ -123,20 +123,20 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public void BlockIp_Successfully_BlocksIpForSpecifiedDuration()
         {
-            // ARRANGE - SETUP THE TEST ENVIRONMENT
+            // ARRANGE - DEFINE IP, DURATION
             var ip = "192.168.1.7";
             var duration = TimeSpan.FromMilliseconds(200);
-            
-            // ACT - BLOCK THE IP FOR THE SPECIFIED DURATION
+
+            // ACT - BLOCK IP
             _service.BlockIp(ip, duration, "Test block");
-            
-            // ASSERT - IP SHOULD BE BLOCKED INITIALLY
+
+            // ASSERT - INITIALLY BLOCKED
             Assert.True(_service.IsIpBlocked(ip));
-            
-            // WAIT FOR THE DURATION TO EXPIRE
+
+            // ACT - WAIT EXPIRE
             Thread.Sleep(300);
-            
-            // IP SHOULD NO LONGER BE BLOCKED
+
+            // ASSERT - UNBLOCKED
             Assert.False(_service.IsIpBlocked(ip));
         }
     }

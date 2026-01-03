@@ -49,21 +49,19 @@ namespace ContactForm.Tests.IntegrationTests
         [Fact]
         public async Task Request_IsBlocked_WhenIpIsBlacklisted()
         {
-            // ARRANGE - SETUP IP PROTECTION SERVICE TO BLOCK THE IP
+            // ARRANGE - MOCK BLOCK, SET BASEADDRESS
             _ipProtectionServiceMock.Setup(x => x.IsIpBlocked(It.IsAny<string>())).Returns(true);
-            
-            // CONFIGURE CONTEXT CONNECTION FEATURES TO USE OUR IP
             _server.BaseAddress = new System.Uri("http://localhost");
-            
-            // ACT - SEND THE HTTP REQUEST MESSAGE
+
+            // ACT - SEND REQUEST
             var response = await _client.GetAsync("/test");
-            
-            // ASSERT - CHECK IF THE RESPONSE STATUS CODE IS FORBIDDEN
+
+            // ASSERT - FORBIDDEN RESPONSE, CONTAINS BLOCKED
             Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
             var responseContent = await response.Content.ReadAsStringAsync();
             Assert.Contains("blocked", responseContent);
-            
-            // VERIFY - CHECK IF THE IP PROTECTION SERVICE WAS CALLED
+
+            // VERIFY - SERVICE CALLED
             _ipProtectionServiceMock.Verify(x => x.IsIpBlocked(It.IsAny<string>()), Times.AtLeastOnce);
         }
 
@@ -71,16 +69,16 @@ namespace ContactForm.Tests.IntegrationTests
         [Fact]
         public async Task Request_IsAllowed_WhenRateLimitNotExceeded()
         {
-            // ARRANGE - SETUP IP PROTECTION SERVICE TO NOT BLOCK THE IP
+            // ARRANGE - MOCK IP ALLOW
             _ipProtectionServiceMock.Setup(x => x.IsIpBlocked(It.IsAny<string>())).Returns(false);
-            
-            // ACT - SEND THE HTTP REQUEST MESSAGE
+
+            // ACT - SEND REQUEST
             var response = await _client.GetAsync("/test");
-            
-            // ASSERT - CHECK IF THE RESPONSE STATUS CODE IS OK
+
+            // ASSERT - STATUS OK
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            
-            // VERIFY - CHECK IF THE IP PROTECTION SERVICE WAS CALLED
+
+            // ASSERT - MOCK CALLED
             _ipProtectionServiceMock.Verify(x => x.IsIpBlocked(It.IsAny<string>()), Times.AtLeastOnce);
             _ipProtectionServiceMock.Verify(x => x.TrackRequest(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.AtLeastOnce);
         }
@@ -89,23 +87,23 @@ namespace ContactForm.Tests.IntegrationTests
         [Fact]
         public async Task Request_ReturnsStatus429_WhenRateLimitExceeded()
         {
-            // ARRANGE - SETUP IP PROTECTION SERVICE TO NOT BLOCK ANY IPs
+            // ARRANGE - MOCK IP UNBLOCKED
             _ipProtectionServiceMock.Setup(x => x.IsIpBlocked(It.IsAny<string>())).Returns(false);
             
-            // ACT - MAKE REQUESTS UNTIL RATE LIMIT IS EXCEEDED
+            // ACT - SEND MULTIPLE REQUESTS
             HttpResponseMessage? response;
-            
-            // FIRST MAKE 10 REQUESTS (THE LIMIT)
+
+            // ACT - SEND 10 REQUESTS
             for (int i = 0; i < 10; i++)
             {
                 response = await _client.GetAsync("/test");
                 Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             }
-            
-            // THE 11TH REQUEST SHOULD BE RATE LIMITED
+
+            // ACT - SEND 11TH REQUEST
             response = await _client.GetAsync("/test");
-            
-            // ASSERT - CHECK IF THE RESPONSE STATUS CODE IS TOO MANY REQUESTS
+
+            // ASSERT - STATUS 429
             Assert.NotNull(response);
             Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
             Assert.True(response.Headers.Contains("Retry-After"));

@@ -103,7 +103,7 @@ namespace ContactForm.Tests.IntegrationTests
         [Fact]
         public async Task SendEmailAsync_WithTemplate_ReturnsTrue()
         {
-            // ARRANGE - CREATING EMAIL REQUEST WITH TEMPLATE
+            // ARRANGE - EMAIL REQUEST
             var request = new EmailRequest
             {
                 Email = "sender@example.com",
@@ -112,10 +112,10 @@ namespace ContactForm.Tests.IntegrationTests
                 Template = PredefinedTemplate.Modern
             };
 
-            // ACT - SENDING EMAIL
+            // ACT - SEND EMAIL
             var result = await _emailService.SendEmailAsync(request, 0);
 
-            // ASSERT - CHECKING IF EMAIL IS SENT SUCCESSFULLY AND TEMPLATE WAS USED
+            // ASSERT - SUCCESS + TEMPLATE
             Assert.True(result);
             _templateServiceMock.Verify(
                 x => x.GetTemplate(PredefinedTemplate.Modern),
@@ -131,7 +131,7 @@ namespace ContactForm.Tests.IntegrationTests
         [Fact]
         public async Task SendEmailAsync_ValidRequest_ReturnsTrue()
         {
-            // ARRANGE - CREATING EMAIL REQUEST
+            // ARRANGE - EMAIL REQUEST
             var request = new EmailRequest
             {
                 Email = "sender@example.com",
@@ -139,10 +139,10 @@ namespace ContactForm.Tests.IntegrationTests
                 Message = "Test message"
             };
 
-            // ACT - SENDING EMAIL
+            // ACT - SEND EMAIL
             var result = await _emailService.SendEmailAsync(request, 0);
 
-            // ASSERT - CHECKING IF EMAIL IS SENT SUCCESSFULLY
+            // ASSERT - EMAIL SENT
             Assert.True(result);
             _smtpClientMock.Verify(
                 x => x.SendWithTokenAsync(It.IsAny<MimeMessage>(), It.IsAny<CancellationToken>()),
@@ -154,7 +154,7 @@ namespace ContactForm.Tests.IntegrationTests
         [Fact]
         public async Task SendEmailAsync_InvalidSmtpId_ThrowsException()
         {
-            // ARRANGE - CREATING EMAIL REQUEST
+            // ARRANGE - CREATE REQUEST
             var request = new EmailRequest
             {
                 Email = "sender@example.com",
@@ -162,12 +162,12 @@ namespace ContactForm.Tests.IntegrationTests
                 Message = "Test message"
             };
 
-            // ACT - SEND EMAIL
+            // ACT - THROW EXCEPTION
             var exception = await Assert.ThrowsAsync<InvalidOperationException>(
                 () => _emailService.SendEmailAsync(request, 999)
             );
 
-            // ASSERT - CHECK RESULT
+            // ASSERT - MESSAGE CONTAINS
             Assert.Contains("SMTP_999 configuration not found", exception.Message);
         }
         

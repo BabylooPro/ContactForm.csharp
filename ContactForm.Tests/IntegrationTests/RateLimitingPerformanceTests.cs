@@ -25,81 +25,83 @@ namespace ContactForm.Tests.IntegrationTests
         [Fact]
         public async Task RateLimiting_HasMinimalPerformanceImpact()
         {
-            // ARRANGE - CREATE A BASELINE WITHOUT RATE LIMITING
-            int iterations = 5; // REDUCED THE NUMBER OF ITERATIONS
+            // ARRANGE - SETUP VARS
+            int iterations = 5;
             var measurements = new List<double>();
-            
-            // REAL MEASUREMENTS
+
             for (int i = 0; i < iterations; i++)
             {
-                // CREATE A NEW HOST AND A NEW CLIENT FOR EACH ITERATION
+                // ARRANGE - HOST/CLIENT
                 var hostBuilder = Host.CreateDefaultBuilder()
                     .ConfigureWebHostDefaults(webBuilder =>
                     {
-                    webBuilder
-                        .UseTestServer()
-                        .ConfigureServices(services =>
-                        {
-                            services.AddControllers();
-                            services.AddLogging();
-                            services.AddSingleton<IIpProtectionService, IpProtectionService>();
-                        })
-                        .Configure(app =>
-                        {
-                            app.UseRouting();
-                            app.Map("/test-with-rate-limiting", appBranch =>
+                        webBuilder
+                            .UseTestServer()
+                            .ConfigureServices(services =>
                             {
-                                appBranch.UseMiddleware<MinimalAPI.Middleware.RateLimitingMiddleware>();
-                                appBranch.Run(async context =>
+                                services.AddControllers();
+                                services.AddLogging();
+                                services.AddSingleton<IIpProtectionService, IpProtectionService>();
+                            })
+                            .Configure(app =>
+                            {
+                                app.UseRouting();
+                                app.Map("/test-with-rate-limiting", appBranch =>
                                 {
-                                    context.Response.StatusCode = 200;
-                                    await context.Response.WriteAsync("OK");
+                                    appBranch.UseMiddleware<MinimalAPI.Middleware.RateLimitingMiddleware>();
+                                    appBranch.Run(async context =>
+                                    {
+                                        context.Response.StatusCode = 200;
+                                        await context.Response.WriteAsync("OK");
+                                    });
+                                });
+                                app.Map("/test-without-rate-limiting", appBranch =>
+                                {
+                                    appBranch.Run(async context =>
+                                    {
+                                        context.Response.StatusCode = 200;
+                                        await context.Response.WriteAsync("OK");
+                                    });
                                 });
                             });
-                            app.Map("/test-without-rate-limiting", appBranch =>
-                            {
-                                appBranch.Run(async context =>
-                                {
-                                    context.Response.StatusCode = 200;
-                                    await context.Response.WriteAsync("OK");
-                                });
-                            });
-                        });
                     });
 
                 var host = hostBuilder.Start();
                 var testServer = host.GetTestServer();
                 using var client = testServer.CreateClient();
-                
-                // TIME WITH RATE LIMITING
+
+                // ACT - WITH RL
                 var stopwatch1 = Stopwatch.StartNew();
                 var response1 = await client.GetAsync("/test-with-rate-limiting");
                 stopwatch1.Stop();
+
+                // ASSERT - STATUS
                 Assert.Equal(HttpStatusCode.OK, response1.StatusCode);
-                
-                // TIME WITHOUT RATE LIMITING
+
+                // ACT - NO RL
                 var stopwatch2 = Stopwatch.StartNew();
                 var response2 = await client.GetAsync("/test-without-rate-limiting");
                 stopwatch2.Stop();
+
+                // ASSERT - STATUS
                 Assert.Equal(HttpStatusCode.OK, response2.StatusCode);
-                
-                // CALCULATE THE OVERHEAD IN PERCENTAGE
+
+                // ACT - OVERHEAD CALC
                 var overhead = ((double)stopwatch1.ElapsedTicks / stopwatch2.ElapsedTicks - 1) * 100;
                 measurements.Add(overhead);
-                
-                // DISPOSE OF RESOURCES
+
+                // CLEANUP RESOURCES
                 await host.StopAsync();
                 host.Dispose();
             }
-            
-            // CALCULATE THE AVERAGE
+
+            // ASSERT - AVG CALC
             var avgOverhead = measurements.Average();
-            
+
             _output.WriteLine($"Average rate limiting overhead: {avgOverhead:F2}%");
             _output.WriteLine($"All measurements: {string.Join(", ", measurements.Select(m => $"{m:F2}%"))}");
-            
-            // A THRESHOLD OF 3500% IS MORE APPROPRIATE FOR THIS INTEGRATION TEST WITH TESTSERVER
-            // THE MEASUREMENTS CAN VARY CONSIDERABLY IN THE TEST ENVIRONMENT
+
+            // ASSERT - THRESHOLD
             Assert.True(avgOverhead < 3500, $"Rate limiting overhead ({avgOverhead:F2}%) exceeds threshold (3500%)");
         }
     }

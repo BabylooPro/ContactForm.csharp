@@ -10,7 +10,7 @@ namespace ContactForm.Tests.Models
         [Fact]
         public void EmailRequest_ValidModel_PassesValidation()
         {
-            // ARRANGE - CREATING VALID EMAIL REQUEST
+            // ARRANGE - CREATE MODEL
             var request = new EmailRequest
             {
                 Email = "test@example.com",
@@ -20,21 +20,21 @@ namespace ContactForm.Tests.Models
             var context = new ValidationContext(request, serviceProvider: null, items: null);
             var results = new List<ValidationResult>();
 
-            // ACT - VALIDATING EMAIL REQUEST
+            // ACT - VALIDATE MODEL
             bool isValid = Validator.TryValidateObject(request, context, results, true);
 
-            // ASSERT - CHECKING IF MODEL IS VALID
+            // ASSERT - MODEL VALID
             Assert.True(isValid);
         }
 
         // TEST FOR EMAIL REQUEST FAILS VALIDATION WHEN MODEL IS INVALID
         [Theory]
-        [InlineData("", "testuser", "Hello, this is a test message.", false)] // Empty email
-        [InlineData("test@example.com", "testuser", "", false)] // Empty message
-        [InlineData("invalid-email", "testuser", "Hello, this is a test message.", false)] // Invalid email
+        [InlineData("", "testuser", "Hello, this is a test message.", false)] // EMPTY EMAIL
+        [InlineData("test@example.com", "testuser", "", false)] // EMPTY MESSAGE
+        [InlineData("invalid-email", "testuser", "Hello, this is a test message.", false)] // INVALID EMAIL
         public void EmailRequest_Validation_FailsOnInvalidData(string email, string username, string message, bool expectedIsValid)
         {
-            // ARRANGE - CREATING EMAIL REQUEST WITH INVALID DATA
+            // ARRANGE - INIT TEST DATA
             var request = new EmailRequest
             {
                 Email = email,
@@ -44,10 +44,10 @@ namespace ContactForm.Tests.Models
             var context = new ValidationContext(request, serviceProvider: null, items: null);
             var results = new List<ValidationResult>();
 
-            // ACT - VALIDATING EMAIL REQUEST
+            // ACT - VALIDATE MODEL
             bool isValid = Validator.TryValidateObject(request, context, results, true);
 
-            // ASSERT - CHECKING IF MODEL IS VALID
+            // ASSERT - VERIFY RESULT
             Assert.Equal(expectedIsValid, isValid);
             if (!expectedIsValid)
             {
@@ -59,7 +59,7 @@ namespace ContactForm.Tests.Models
         [Fact]
         public void EmailRequest_EmptyUsername_PassesValidation()
         {
-            // ARRANGE - CREATING EMAIL REQUEST WITH EMPTY USERNAME
+            // ARRANGE - CREATE MODEL
             var request = new EmailRequest
             {
                 Email = "test@example.com",
@@ -69,10 +69,10 @@ namespace ContactForm.Tests.Models
             var context = new ValidationContext(request, serviceProvider: null, items: null);
             var results = new List<ValidationResult>();
 
-            // ACT - VALIDATING EMAIL REQUEST
+            // ACT - VALIDATE MODEL
             bool isValid = Validator.TryValidateObject(request, context, results, true);
 
-            // ASSERT - CHECKING IF MODEL IS VALID
+            // ASSERT - VALID MODEL
             Assert.True(isValid);
             Assert.Empty(results);
         }

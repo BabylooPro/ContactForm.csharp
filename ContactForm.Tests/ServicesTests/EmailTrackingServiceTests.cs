@@ -9,15 +9,15 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public async Task IsEmailUnique_FirstUse_ReturnsTrue()
         {
-            // ARRANGE - CREATE NEW INSTANCE OF EMAIL TRACKING SERVICE
+            // ARRANGE - INIT SERVICE
             var service = new EmailTrackingService();
-            var email = "test1@example.com"; // UNIQUE EMAIL FOR THIS TEST
+            var email = "test1@example.com";
             var smtpIndex = 1;
 
-            // ACT - CHECK IF EMAIL IS UNIQUE
+            // ACT - CHECK UNIQUE
             var (isAllowed, timeRemaining, usageCount) = await service.IsEmailUnique(email, smtpIndex);
 
-            // ASSERT - EMAIL SHOULD BE UNIQUE
+            // ASSERT - UNIQUE TRUE
             Assert.True(isAllowed);
             Assert.Null(timeRemaining);
             Assert.Equal(0, usageCount);
@@ -27,24 +27,23 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public async Task IsEmailUnique_AfterTrackingEmail_ReturnsFalseWithTimeout()
         {
-            // ARRANGE - CREATE NEW INSTANCE OF EMAIL TRACKING SERVICE
+            // ARRANGE - INIT SERVICE
             var service = new EmailTrackingService();
-            var email = "test2@example.com"; // UNIQUE EMAIL FOR THIS TEST
+            var email = "test2@example.com";
             var smtpIndex = 1;
 
-            // ACT - FIRST TRACK THE EMAIL
+            // ACT - TRACK EMAIL
             await service.TrackEmail(email, smtpIndex);
             var (isAllowed, timeRemaining, usageCount) = await service.IsEmailUnique(email, smtpIndex);
 
-            // ASSERT - EMAIL SHOULD NOT BE UNIQUE
+            // ASSERT - VERIFY RESULT
             Assert.False(isAllowed);
             Assert.NotNull(timeRemaining);
             Assert.Equal(1, usageCount);
-            
-            // VERIFY THE TIMEOUT IS APPROXIMATELY 1 HOUR
+
+            // ASSERT - TIMEOUT 1 HOUR
             var expectedTimeout = TimeSpan.FromHours(1);
-            var tolerance = TimeSpan.FromMinutes(1); // ALLOW 1 MINUTE TOLERANCE
-            
+            var tolerance = TimeSpan.FromMinutes(1);
             Assert.True(
                 Math.Abs((timeRemaining.Value - expectedTimeout).TotalMinutes) < tolerance.TotalMinutes,
                 $"Timeout should be approximately {expectedTimeout} but was {timeRemaining}"
@@ -55,25 +54,24 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public async Task IsEmailUnique_MultipleTracks_IncreaseTimeout()
         {
-            // ARRANGE - CREATE NEW INSTANCE OF EMAIL TRACKING SERVICE
+            // ARRANGE - INIT SERVICE
             var service = new EmailTrackingService();
-            var email = "test3@example.com"; // UNIQUE EMAIL FOR THIS TEST
+            var email = "test3@example.com";
             var smtpIndex = 1;
 
-            // ACT - TRACK EMAIL MULTIPLE TIMES
-            await service.TrackEmail(email, smtpIndex); // FIRST USAGE - 1 HOUR TIMEOUT
-            await service.TrackEmail(email, smtpIndex); // SECOND USAGE - 2 HOURS TIMEOUT
+            // ACT - TRACK TWICE
+            await service.TrackEmail(email, smtpIndex);
+            await service.TrackEmail(email, smtpIndex);
             var (isAllowed, timeRemaining, usageCount) = await service.IsEmailUnique(email, smtpIndex);
 
-            // ASSERT - EMAIL SHOULD NOT BE UNIQUE
+            // ASSERT - VALIDATE RESULT
             Assert.False(isAllowed);
             Assert.NotNull(timeRemaining);
             Assert.Equal(2, usageCount);
-            
-            // VERIFY THE TIMEOUT IS APPROXIMATELY 2 HOURS
+
+            // ASSERT - TIMEOUT 2H
             var expectedTimeout = TimeSpan.FromHours(2);
-            var tolerance = TimeSpan.FromMinutes(1); // ALLOW 1 MINUTE TOLERANCE
-            
+            var tolerance = TimeSpan.FromMinutes(1);
             Assert.True(
                 Math.Abs((timeRemaining.Value - expectedTimeout).TotalMinutes) < tolerance.TotalMinutes,
                 $"Timeout should be approximately {expectedTimeout} but was {timeRemaining}"
@@ -84,48 +82,40 @@ namespace ContactForm.Tests.ServicesTests
         [Fact]
         public async Task IsEmailUnique_DifferentSmtpIndexes_TracksSeparately()
         {
-            // ARRANGE - CREATE NEW INSTANCE OF EMAIL TRACKING SERVICE
+            // ARRANGE - INIT SERVICE
             var service = new EmailTrackingService();
-            var email = "test4@example.com"; // UNIQUE EMAIL FOR THIS TEST
+            var email = "test4@example.com";
             var smtpIndex1 = 1;
             var smtpIndex2 = 2;
 
-            // ACT - TRACK EMAIL FOR ONE SMTP INDEX
+            // ACT - TRACK EMAIL, CHECK BOTH INDEXES
             await service.TrackEmail(email, smtpIndex1);
-            
-            // CHECK FIRST SMTP INDEX
             var (isAllowed1, _, _) = await service.IsEmailUnique(email, smtpIndex1);
-            
-            // CHECK SECOND SMTP INDEX (UNUSED)
             var (isAllowed2, _, _) = await service.IsEmailUnique(email, smtpIndex2);
 
-            // ASSERT - EMAIL SHOULD NOT BE UNIQUE FOR FIRST SMTP
-            Assert.False(isAllowed1); // SHOULD BE BLOCKED FOR FIRST SMTP
-            Assert.True(isAllowed2);  // SHOULD BE ALLOWED FOR SECOND SMTP
+            // ASSERT - FIRST BLOCKED, SECOND ALLOWED
+            Assert.False(isAllowed1);
+            Assert.True(isAllowed2);
         }
 
         // TEST FOR AFTER TIMEOUT EXPIRES
         [Fact]
         public async Task IsEmailUnique_AfterTimeoutExpires_ReturnsTrue()
         {
-            // ARRANGE - CREATE NEW INSTANCE OF EMAIL TRACKING SERVICE
+            // ARRANGE - INIT SERVICE
             var testService = new TestableEmailTrackingService();
-            var email = "test5@example.com"; // UNIQUE EMAIL FOR THIS TEST
+            var email = "test5@example.com";
             var smtpIndex = 1;
 
-            // ACT - TRACK EMAIL ONCE
+            // ACT - TRACK EMAIL, SIMULATE TIME
             await testService.TrackEmail(email, smtpIndex);
-            
-            // SIMULATE TIME PASSING (SET LAST USED TO 2 HOURS AGO)
             TestableEmailTrackingService.SimulateTimePassing(email, smtpIndex, TimeSpan.FromHours(2));
-            
-            // CHECK IF EMAIL CAN BE USED NOW
             var (isAllowed, timeRemaining, usageCount) = await testService.IsEmailUnique(email, smtpIndex);
 
-            // ASSERT - EMAIL SHOULD BE UNIQUE
+            // ASSERT - ALLOWED, TIME NULL, USAGE 1
             Assert.True(isAllowed);
             Assert.Null(timeRemaining);
-            Assert.Equal(1, usageCount); // USAGE COUNT STILL SHOWS 1
+            Assert.Equal(1, usageCount);
         }
     }
 
@@ -139,9 +129,9 @@ namespace ContactForm.Tests.ServicesTests
         {
             string key = $"{email.ToLower()}:{smtpIndex}";
             
+            // SIMULATE TIME PASSING BY BACKDATING THE LAST USED TIMESTAMP
             if (_trackedEmails.TryGetValue(key, out var data))
             {
-                // SIMULATE TIME PASSING BY BACKDATING THE LAST USED TIMESTAMP
                 data.LastUsed = DateTime.UtcNow.Subtract(timePassed);
                 _trackedEmails[key] = data;
             }
@@ -154,8 +144,10 @@ namespace ContactForm.Tests.ServicesTests
             
             _trackedEmails.AddOrUpdate(
                 key,
+
                 // ADD NEW ENTRY IF KEY DOESN'T EXIST
                 _ => new EmailUsageData { UsageCount = 1, LastUsed = DateTime.UtcNow },
+
                 // UPDATE EXISTING ENTRY IF KEY EXISTS
                 (_, existingData) => new EmailUsageData 
                 { 

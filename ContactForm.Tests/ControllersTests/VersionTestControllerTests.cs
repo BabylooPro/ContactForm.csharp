@@ -12,26 +12,27 @@ namespace ContactForm.Tests.ControllersTests
         [Fact]
         public async Task GetV1_WithPahtVersion_ReturnV1Data()
         {
-            // ARRANGE - CREATE A CLIENT TO MAKE HTTP REQUESTS
+            // ARRANGE - CREATE CLIENT
             var client = _factory.CreateClient();
 
-            // ACT - SEND A GET REQUEST TO THE V1 ENDPOINT WITH PATH VERSION
+            // ACT - GET V1
             var response = await client.GetAsync("/api/v1/versiontest");
 
-            // ASSERT - CHECK THE RESPOSNE STATUS CODE AND CONTENT
+            // ASSERT - STATUS OK
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
+
         // TEST FOR GET V2 ENDPOINT WITH PATH VERSION TO RETURN V2 DATA
         [Fact]
         public async Task GetV2_WithPahtVersion_ReturnV1Data()
         {
-            // ARRANGE - CREATE A CLIENT TO MAKE HTTP REQUESTS
+            // ARRANGE - CREATE CLIENT
             var client = _factory.CreateClient();
 
-            // ACT - SEND A GET REQUEST TO THE V1 ENDPOINT WITH PATH VERSION
+            // ACT - SEND REQUEST
             var response = await client.GetAsync("/api/v2/versiontest");
 
-            // ASSERT - CHECK THE RESPOSNE STATUS CODE AND CONTENT
+            // ASSERT - CHECK STATUS
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
 
@@ -39,13 +40,13 @@ namespace ContactForm.Tests.ControllersTests
         [Fact]
         public async Task Get_WithoutVersion_ReturnBadRequest()
         {
-            // ARRANGE - CREATE A CLIENT TO MAKE HTTP REQUESTS
+            // ARRANGE - CREATE CLIENT
             var client = _factory.CreateClient();
 
-            // ACT - SEND A GET REQUEST TO THE V1 ENDPOINT WITH PATH VERSION
+            // ACT - SEND REQUEST
             var response = await client.GetAsync("/api/versiontest");
 
-            // ASSERT - CHECK THE RESPOSNE STATUS CODE AND CONTENT
+            // ASSERT - EXPECT BADREQUEST
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
 
@@ -53,22 +54,23 @@ namespace ContactForm.Tests.ControllersTests
         [Fact]
         public async Task Get_WithBothQueryAndHeaderVersion_QueryStringTakesPriority()
         {
-            // ARRANGE - CREATE A CLIENT TO MAKE HTTP REQUESTS
+            // ARRANGE - CREATE CLIENT
             var client = _factory.CreateClient();
 
-            // ACT - SEND A GET REQUEST WITH BOTH QUERY STRING AND HEADER VERSION
+            // ARRANGE - BUILD REQUEST
             var request = new HttpRequestMessage(HttpMethod.Get, "/api/versiontest?api-version=1.0");
             request.Headers.Add("X-Version", "2.0");
 
-            // ASSERT - CHECK RESPONSE STATUS CODE - SHOULD SUCCEED USING QUERY STRING VERSION (1.0)
+            // ACT - SEND REQUEST
             var response = await client.SendAsync(request);
+
+            // ASSERT - STATUS OK
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            
-            // VERIFY THAT V1 WAS USED (NOT V2 FROM HEADER)
+
+            // ASSERT - VERSION 1.0
             var content = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(content);
             var root = doc.RootElement;
-            // JSON USES CAMELCASE (version) NOT PASCALCASE (Version)
             Assert.True(root.TryGetProperty("version", out var versionProp));
             Assert.Equal("1.0", versionProp.GetString());
         }

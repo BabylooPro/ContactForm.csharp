@@ -84,14 +84,14 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void CheckMissingEnvironmentVariables_AllPresent_ReturnsEmptyList()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - SET ENV VARS
             Environment.SetEnvironmentVariable("VAR1", "value1");
             Environment.SetEnvironmentVariable("VAR2", "value2");
 
-            // ACT - CHECKING MISSING ENVIRONMENT VARIABLES
+            // ACT - CHECK MISSING
             var result = EnvironmentUtils.CheckMissingEnvironmentVariables("VAR1", "VAR2");
 
-            // ASSERT - CHECKING IF THE RESULT IS EMPTY
+            // ASSERT - SHOULD BE EMPTY
             Assert.Empty(result);
         }
 
@@ -99,15 +99,15 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void CheckMissingEnvironmentVariables_SomeMissing_ReturnsMissingVariables()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - SET ENV VARS
             Environment.SetEnvironmentVariable("VAR1", "value1");
             Environment.SetEnvironmentVariable("VAR2", null);
             Environment.SetEnvironmentVariable("VAR3", "");
 
-            // ACT - CHECKING MISSING ENVIRONMENT VARIABLES
+            // ACT - CHECK MISSING
             var result = EnvironmentUtils.CheckMissingEnvironmentVariables("VAR1", "VAR2", "VAR3");
 
-            // ASSERT - CHECKING IF THE RESULT IS NOT EMPTY
+            // ASSERT - VERIFY RESULT
             Assert.Equal(2, result.Count);
             Assert.Contains("VAR2", result);
             Assert.Contains("VAR3", result);
@@ -118,14 +118,14 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void CheckMissingEnvironmentVariables_AllMissing_ReturnsAllVariables()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - CLEAR VARIABLES
             Environment.SetEnvironmentVariable("VAR1", null);
             Environment.SetEnvironmentVariable("VAR2", null);
 
-            // ACT - CHECKING MISSING ENVIRONMENT VARIABLES
+            // ACT - CHECK MISSING
             var result = EnvironmentUtils.CheckMissingEnvironmentVariables("VAR1", "VAR2");
 
-            // ASSERT - CHECKING IF THE RESULT IS NOT EMPTY
+            // ASSERT - ALL MISSING
             Assert.Equal(2, result.Count);
             Assert.Contains("VAR1", result);
             Assert.Contains("VAR2", result);
@@ -135,13 +135,13 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void CheckMissingEnvironmentVariables_WhitespaceOnly_ReturnsVariable()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - SET ENV VAR
             Environment.SetEnvironmentVariable("VAR1", "   ");
 
-            // ACT - CHECKING MISSING ENVIRONMENT VARIABLES
+            // ACT - CHECK MISSING
             var result = EnvironmentUtils.CheckMissingEnvironmentVariables("VAR1");
 
-            // ASSERT - CHECKING IF THE RESULT IS NOT EMPTY
+            // ASSERT - RESULT CONTAINS VAR1
             Assert.Single(result);
             Assert.Contains("VAR1", result);
         }
@@ -150,7 +150,7 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void LoadSmtpConfigurationsFromEnvironment_ValidJsonArray_ReturnsConfigurations()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - BACKUP/SET VAR
             var originalSmtpConfig = Environment.GetEnvironmentVariable("SMTP_CONFIGURATIONS");
             var json = @"[
                 {
@@ -166,10 +166,10 @@ namespace ContactForm.Tests.UtilitiesTests
 
             try
             {
-                // ACT - LOADING SMTP CONFIGURATIONS FROM ENVIRONMENT
+                // ACT - LOAD CONFIGS
                 var result = EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
 
-                // ASSERT - CHECKING IF THE RESULT IS NOT EMPTY
+                // ASSERT - CHECK VALUES
                 Assert.Single(result);
                 Assert.Equal("smtp.example.com", result[0].Host);
                 Assert.Equal(587, result[0].Port);
@@ -180,6 +180,7 @@ namespace ContactForm.Tests.UtilitiesTests
             }
             finally
             {
+                // CLEANUP - RESTORE VAR
                 Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", originalSmtpConfig);
             }
         }
@@ -188,7 +189,7 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void LoadSmtpConfigurationsFromEnvironment_MultipleConfigurations_ReturnsAll()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - BACKUP, SET VAR
             var originalSmtpConfig = Environment.GetEnvironmentVariable("SMTP_CONFIGURATIONS");
             var json = @"[
                 {
@@ -212,16 +213,17 @@ namespace ContactForm.Tests.UtilitiesTests
 
             try
             {
-                // ACT - LOADING SMTP CONFIGURATIONS FROM ENVIRONMENT
+                // ACT - LOAD CONFIGURATIONS
                 var result = EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
 
-                // ASSERT - CHECKING IF THE RESULT IS NOT EMPTY
+                // ASSERT - CHECK VALUES
                 Assert.Equal(2, result.Count);
                 Assert.Equal("smtp1.example.com", result[0].Host);
                 Assert.Equal("smtp2.example.com", result[1].Host);
             }
             finally
             {
+                // ARRANGE - RESTORE VAR
                 Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", originalSmtpConfig);
             }
         }
@@ -230,20 +232,19 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void LoadSmtpConfigurationsFromEnvironment_MissingVariable_ThrowsException()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - BACKUP, UNSET
             var originalSmtpConfig = Environment.GetEnvironmentVariable("SMTP_CONFIGURATIONS");
             Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", null);
 
             try
             {
-                // ACT & ASSERT - CHECKING IF EXCEPTION IS THROWN WHEN VARIABLE IS MISSING
-                var exception = Assert.Throws<InvalidOperationException>(
-                    () => EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment()
-                );
+                // ACT & ASSERT - THROW EXCEPTION
+                var exception = Assert.Throws<InvalidOperationException>(() => EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment());
                 Assert.Contains("Missing required configuration: SMTP_CONFIGURATIONS", exception.Message);
             }
             finally
             {
+                // ARRANGE - RESTORE VAR
                 Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", originalSmtpConfig);
             }
         }
@@ -252,13 +253,13 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void LoadSmtpConfigurationsFromEnvironment_EmptyString_ThrowsException()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - BACKUP, CLEAR VAR
             var originalSmtpConfig = Environment.GetEnvironmentVariable("SMTP_CONFIGURATIONS");
             Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", "");
 
             try
             {
-                // ACT & ASSERT - CHECKING IF EXCEPTION IS THROWN WHEN VARIABLE IS EMPTY
+                // ACT - CALL METHOD, ASSERT - THROW EXCEPTION
                 var exception = Assert.Throws<InvalidOperationException>(
                     () => EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment()
                 );
@@ -266,6 +267,7 @@ namespace ContactForm.Tests.UtilitiesTests
             }
             finally
             {
+                // ARRANGE - RESTORE VAR
                 Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", originalSmtpConfig);
             }
         }
@@ -274,13 +276,13 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void LoadSmtpConfigurationsFromEnvironment_NotStartingWithBracket_ThrowsException()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - BACKUP, SET VAR
             var originalSmtpConfig = Environment.GetEnvironmentVariable("SMTP_CONFIGURATIONS");
             Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", "{ \"Host\": \"test\" }");
 
             try
             {
-                // ACT & ASSERT - CHECKING IF EXCEPTION IS THROWN WHEN JSON DOES NOT START WITH BRACKET
+                // ACT/ASSERT - EXPECT EXCEPTION
                 var exception = Assert.Throws<InvalidOperationException>(
                     () => EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment()
                 );
@@ -288,6 +290,7 @@ namespace ContactForm.Tests.UtilitiesTests
             }
             finally
             {
+                // ARRANGE - RESTORE VAR
                 Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", originalSmtpConfig);
             }
         }
@@ -296,13 +299,13 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void LoadSmtpConfigurationsFromEnvironment_InvalidJson_ThrowsException()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - BACKUP, SET INVALID
             var originalSmtpConfig = Environment.GetEnvironmentVariable("SMTP_CONFIGURATIONS");
             Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", "[ invalid json }");
 
             try
             {
-                // ACT & ASSERT - CHECKING IF EXCEPTION IS THROWN WHEN JSON IS INVALID
+                // ACT/ASSERT - THROW IF INVALID
                 var exception = Assert.Throws<InvalidOperationException>(
                     () => EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment()
                 );
@@ -310,6 +313,7 @@ namespace ContactForm.Tests.UtilitiesTests
             }
             finally
             {
+                // ARRANGE - RESTORE ENV
                 Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", originalSmtpConfig);
             }
         }
@@ -318,20 +322,21 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void LoadSmtpConfigurationsFromEnvironment_EmptyArray_ThrowsException()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - BACKUP, SET EMPTY
             var originalSmtpConfig = Environment.GetEnvironmentVariable("SMTP_CONFIGURATIONS");
             Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", "[]");
 
             try
             {
-                // ACT & ASSERT - CHECKING IF EXCEPTION IS THROWN WHEN JSON ARRAY IS EMPTY
-                var exception = Assert.Throws<InvalidOperationException>(
-                    () => EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment()
-                );
+                // ACT - CALL METHOD
+                var exception = Assert.Throws<InvalidOperationException>(() => EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment());
+
+                // ASSERT - EXPECT EXCEPTION
                 Assert.Contains("The JSON array was parsed but produced no SMTP configurations", exception.Message);
             }
             finally
             {
+                // ARRANGE - RESTORE ENV
                 Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", originalSmtpConfig);
             }
         }
@@ -340,7 +345,7 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void LoadSmtpConfigurationsFromEnvironment_WithQuotes_RemovesQuotes()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - BACKUP/SET ENV
             var originalSmtpConfig = Environment.GetEnvironmentVariable("SMTP_CONFIGURATIONS");
             var json = @"[
                 {
@@ -356,15 +361,16 @@ namespace ContactForm.Tests.UtilitiesTests
 
             try
             {
-                // ACT - LOADING SMTP CONFIGURATIONS FROM ENVIRONMENT
+                // ACT - LOAD CONFIG
                 var result = EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
 
-                // ASSERT - CHECKING IF THE RESULT IS NOT EMPTY
+                // ASSERT - CHECK RESULT
                 Assert.Single(result);
                 Assert.Equal("smtp.example.com", result[0].Host);
             }
             finally
             {
+                // ARRANGE - RESTORE ENV
                 Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", originalSmtpConfig);
             }
         }
@@ -373,7 +379,7 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void LoadSmtpConfigurationsFromEnvironment_WithMultilineWhitespace_Normalizes()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - ENV VAR SETUP
             var originalSmtpConfig = Environment.GetEnvironmentVariable("SMTP_CONFIGURATIONS");
             var json = @"[
                 {
@@ -390,15 +396,16 @@ namespace ContactForm.Tests.UtilitiesTests
 
             try
             {
-                // ACT - LOADING SMTP CONFIGURATIONS FROM ENVIRONMENT
+                // ACT - LOAD CONFIGS
                 var result = EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
 
-                // ASSERT - CHECKING IF THE RESULT IS NOT EMPTY
+                // ASSERT - RESULT VALID
                 Assert.Single(result);
                 Assert.Equal("smtp.example.com", result[0].Host);
             }
             finally
             {
+                // ARRANGE - RESTORE ENV
                 Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", originalSmtpConfig);
             }
         }
@@ -407,7 +414,7 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void LoadSmtpConfigurationsFromEnvironment_WithTrailingComma_HandlesCorrectly()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - SAVE/SET ENV
             var originalSmtpConfig = Environment.GetEnvironmentVariable("SMTP_CONFIGURATIONS");
             var json = @"[
                 {
@@ -423,15 +430,16 @@ namespace ContactForm.Tests.UtilitiesTests
 
             try
             {
-                // ACT - LOADING SMTP CONFIGURATIONS FROM ENVIRONMENT
+                // ACT - LOAD CONFIG
                 var result = EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
 
-                // ASSERT - CHECKING IF THE RESULT IS NOT EMPTY
+                // ASSERT - VERIFY RESULT
                 Assert.Single(result);
                 Assert.Equal("smtp.example.com", result[0].Host);
             }
             finally
             {
+                // ARRANGE - RESTORE ENV
                 Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", originalSmtpConfig);
             }
         }
@@ -440,7 +448,7 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void LoadSmtpConfigurationsFromEnvironment_CaseInsensitiveProperties_HandlesCorrectly()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - SAVE ORIGINAL, SET ENV
             var originalSmtpConfig = Environment.GetEnvironmentVariable("SMTP_CONFIGURATIONS");
             var json = @"[
                 {
@@ -456,16 +464,17 @@ namespace ContactForm.Tests.UtilitiesTests
 
             try
             {
-                // ACT - LOADING SMTP CONFIGURATIONS FROM ENVIRONMENT
+                // ACT - LOAD CONFIGURATIONS
                 var result = EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
 
-                // ASSERT - CHECKING IF THE RESULT IS NOT EMPTY
+                // ASSERT - CHECK COUNT, VALUES
                 Assert.Single(result);
                 Assert.Equal("smtp.example.com", result[0].Host);
                 Assert.Equal(587, result[0].Port);
             }
             finally
             {
+                // ARRANGE - RESTORE ENV
                 Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", originalSmtpConfig);
             }
         }
@@ -474,7 +483,7 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void LoadSmtpConfigurationsFromEnvironment_FromEnvFile_LoadsCorrectly()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - ENV VAR
             var json = @"[
                 {
                     ""Host"": ""smtp.example.com"",
@@ -493,15 +502,16 @@ namespace ContactForm.Tests.UtilitiesTests
 
             try
             {
-                // ACT - LOADING SMTP CONFIGURATIONS FROM ENVIRONMENT
+                // ACT - LOAD CONFIG
                 var result = EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
 
-                // ASSERT - CHECKING IF THE RESULT IS NOT EMPTY
+                // ASSERT - CHECK RESULT
                 Assert.Single(result);
                 Assert.Equal("smtp.example.com", result[0].Host);
             }
             finally
             {
+                // CLEANUP - RESTORE ENV
                 Directory.SetCurrentDirectory(originalDir);
                 Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", originalSmtpConfig);
             }
@@ -511,7 +521,7 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void LoadSmtpConfigurationsFromEnvironment_FromEnvFileMultiline_LoadsCorrectly()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - SET ENV VARS
             var json = @"[
                 {
                     ""Host"": ""smtp.example.com"",
@@ -530,15 +540,16 @@ namespace ContactForm.Tests.UtilitiesTests
 
             try
             {
-                // ACT - LOADING SMTP CONFIGURATIONS FROM ENVIRONMENT
+                // ACT - LOAD CONFIGURATIONS
                 var result = EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
 
-                // ASSERT - CHECKING IF THE RESULT IS NOT EMPTY
+                // ASSERT - VALIDATE RESULT
                 Assert.Single(result);
                 Assert.Equal("smtp.example.com", result[0].Host);
             }
             finally
             {
+                // CLEANUP - RESTORE ENV
                 Directory.SetCurrentDirectory(originalDir);
                 Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", originalSmtpConfig);
             }
@@ -548,7 +559,7 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void ConfigureSmtpSettings_ValidConfiguration_ConfiguresServices()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - SAVE ORIGINALS
             var originalReceptionEmail = Environment.GetEnvironmentVariable("SMTP_RECEPTION_EMAIL");
             var originalCatchAllEmail = Environment.GetEnvironmentVariable("SMTP_CATCHALL_EMAIL");
             var services = new ServiceCollection();
@@ -569,10 +580,10 @@ namespace ContactForm.Tests.UtilitiesTests
 
             try
             {
-                // ACT - CONFIGURING SMTP SETTINGS
+                // ACT - CONFIGURE SERVICES
                 EnvironmentUtils.ConfigureSmtpSettings(services, configurations);
 
-                // ASSERT - CHECKING IF THE SMTP SETTINGS ARE CONFIGURED CORRECTLY
+                // ASSERT - VERIFY CONFIGURATION
                 var serviceProvider = services.BuildServiceProvider();
                 var smtpSettings = serviceProvider.GetRequiredService<IOptions<SmtpSettings>>().Value;
                 Assert.Single(smtpSettings.Configurations);
@@ -581,6 +592,7 @@ namespace ContactForm.Tests.UtilitiesTests
             }
             finally
             {
+                // CLEANUP - RESTORE ENV
                 Environment.SetEnvironmentVariable("SMTP_RECEPTION_EMAIL", originalReceptionEmail);
                 Environment.SetEnvironmentVariable("SMTP_CATCHALL_EMAIL", originalCatchAllEmail);
             }
@@ -590,7 +602,7 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void ConfigureSmtpSettings_MissingReceptionEmail_ThrowsException()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - SAVE ORIGINALS
             var originalReceptionEmail = Environment.GetEnvironmentVariable("SMTP_RECEPTION_EMAIL");
             var originalCatchAllEmail = Environment.GetEnvironmentVariable("SMTP_CATCHALL_EMAIL");
             var services = new ServiceCollection();
@@ -600,7 +612,7 @@ namespace ContactForm.Tests.UtilitiesTests
 
             try
             {
-                // ACT & ASSERT - CHECKING IF EXCEPTION IS THROWN WHEN RECEPTION EMAIL IS MISSING
+                // ACT & ASSERT - THROW IF MISSING
                 var exception = Assert.Throws<InvalidOperationException>(
                     () => EnvironmentUtils.ConfigureSmtpSettings(services, configurations)
                 );
@@ -608,6 +620,7 @@ namespace ContactForm.Tests.UtilitiesTests
             }
             finally
             {
+                // CLEANUP - RESTORE ENV
                 Environment.SetEnvironmentVariable("SMTP_RECEPTION_EMAIL", originalReceptionEmail);
                 Environment.SetEnvironmentVariable("SMTP_CATCHALL_EMAIL", originalCatchAllEmail);
             }
@@ -617,7 +630,7 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void ConfigureSmtpSettings_MissingCatchAllEmail_ThrowsException()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - ENV VARS
             var originalReceptionEmail = Environment.GetEnvironmentVariable("SMTP_RECEPTION_EMAIL");
             var originalCatchAllEmail = Environment.GetEnvironmentVariable("SMTP_CATCHALL_EMAIL");
             var services = new ServiceCollection();
@@ -627,7 +640,7 @@ namespace ContactForm.Tests.UtilitiesTests
 
             try
             {
-                // ACT & ASSERT - CHECKING IF EXCEPTION IS THROWN WHEN CATCHALL EMAIL IS MISSING
+                // ACT & ASSERT - THROW EXCEPTION
                 var exception = Assert.Throws<InvalidOperationException>(
                     () => EnvironmentUtils.ConfigureSmtpSettings(services, configurations)
                 );
@@ -635,6 +648,7 @@ namespace ContactForm.Tests.UtilitiesTests
             }
             finally
             {
+                // CLEANUP - RESTORE ENV
                 Environment.SetEnvironmentVariable("SMTP_RECEPTION_EMAIL", originalReceptionEmail);
                 Environment.SetEnvironmentVariable("SMTP_CATCHALL_EMAIL", originalCatchAllEmail);
             }
@@ -644,7 +658,7 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void ConfigureSmtpSettings_EmptyReceptionEmail_ThrowsException()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - ENV VARS
             var originalReceptionEmail = Environment.GetEnvironmentVariable("SMTP_RECEPTION_EMAIL");
             var originalCatchAllEmail = Environment.GetEnvironmentVariable("SMTP_CATCHALL_EMAIL");
             var services = new ServiceCollection();
@@ -654,7 +668,7 @@ namespace ContactForm.Tests.UtilitiesTests
 
             try
             {
-                // ACT & ASSERT - CHECKING IF EXCEPTION IS THROWN WHEN RECEPTION EMAIL IS EMPTY
+                // ACT & ASSERT - THROW EXCEPTION
                 var exception = Assert.Throws<InvalidOperationException>(
                     () => EnvironmentUtils.ConfigureSmtpSettings(services, configurations)
                 );
@@ -662,6 +676,7 @@ namespace ContactForm.Tests.UtilitiesTests
             }
             finally
             {
+                // CLEANUP - RESTORE ENV
                 Environment.SetEnvironmentVariable("SMTP_RECEPTION_EMAIL", originalReceptionEmail);
                 Environment.SetEnvironmentVariable("SMTP_CATCHALL_EMAIL", originalCatchAllEmail);
             }
@@ -671,7 +686,7 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void ConfigureSmtpSettings_EmptyCatchAllEmail_ThrowsException()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - ENV VARS
             var originalReceptionEmail = Environment.GetEnvironmentVariable("SMTP_RECEPTION_EMAIL");
             var originalCatchAllEmail = Environment.GetEnvironmentVariable("SMTP_CATCHALL_EMAIL");
             var services = new ServiceCollection();
@@ -681,7 +696,7 @@ namespace ContactForm.Tests.UtilitiesTests
 
             try
             {
-                // ACT & ASSERT - CHECKING IF EXCEPTION IS THROWN WHEN CATCHALL EMAIL IS EMPTY
+                // ACT & ASSERT - THROW EXCEPTION
                 var exception = Assert.Throws<InvalidOperationException>(
                     () => EnvironmentUtils.ConfigureSmtpSettings(services, configurations)
                 );
@@ -689,6 +704,7 @@ namespace ContactForm.Tests.UtilitiesTests
             }
             finally
             {
+                // CLEANUP - RESTORE ENV
                 Environment.SetEnvironmentVariable("SMTP_RECEPTION_EMAIL", originalReceptionEmail);
                 Environment.SetEnvironmentVariable("SMTP_CATCHALL_EMAIL", originalCatchAllEmail);
             }
@@ -698,10 +714,14 @@ namespace ContactForm.Tests.UtilitiesTests
         [Fact]
         public void ConfigureSmtpSettings_MultipleConfigurations_ConfiguresAll()
         {
-            // ARRANGE - SETTING ENVIRONMENT VARIABLES
+            // ARRANGE - SAVE ORIGINAL ENV
             var originalReceptionEmail = Environment.GetEnvironmentVariable("SMTP_RECEPTION_EMAIL");
             var originalCatchAllEmail = Environment.GetEnvironmentVariable("SMTP_CATCHALL_EMAIL");
+            
+            // ARRANGE - PREPARE SERVICES
             var services = new ServiceCollection();
+            
+            // ARRANGE - CREATE CONFIGS
             var configurations = new List<SmtpConfig>
             {
                 new()
@@ -723,15 +743,17 @@ namespace ContactForm.Tests.UtilitiesTests
                     Index = 1
                 }
             };
+            
+            // ARRANGE - SET ENV VARS
             Environment.SetEnvironmentVariable("SMTP_RECEPTION_EMAIL", "reception@example.com");
             Environment.SetEnvironmentVariable("SMTP_CATCHALL_EMAIL", "catchall@example.com");
 
             try
             {
-                // ACT - CONFIGURING SMTP SETTINGS
+                // ACT - CONFIGURE SMTP
                 EnvironmentUtils.ConfigureSmtpSettings(services, configurations);
 
-                // ASSERT - CHECKING IF THE SMTP SETTINGS ARE CONFIGURED CORRECTLY
+                // ASSERT - CHECK CONFIGS
                 var serviceProvider = services.BuildServiceProvider();
                 var smtpSettings = serviceProvider.GetRequiredService<IOptions<SmtpSettings>>().Value;
                 Assert.Equal(2, smtpSettings.Configurations.Count);
@@ -740,6 +762,7 @@ namespace ContactForm.Tests.UtilitiesTests
             }
             finally
             {
+                // ARRANGE - RESTORE ENV
                 Environment.SetEnvironmentVariable("SMTP_RECEPTION_EMAIL", originalReceptionEmail);
                 Environment.SetEnvironmentVariable("SMTP_CATCHALL_EMAIL", originalCatchAllEmail);
             }
