@@ -2,6 +2,7 @@ using ContactForm.MinimalAPI.Interfaces;
 using ContactForm.MinimalAPI.Models;
 using ContactForm.MinimalAPI.Services;
 using MailKit.Security;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
 using Moq;
@@ -132,6 +133,15 @@ namespace ContactForm.Tests.ServicesTests
             // ASSERT - VERIFY RESULT
             Assert.True(result);
             _templateServiceMock.Verify(x => x.GetTemplate(PredefinedTemplate.Modern), Times.Once);
+            
+            // ASSERT - VERIFY SUBJECT CONTAINS ID
+            _smtpClientMock.Verify(
+                x => x.SendWithTokenAsync(
+                    It.Is<MimeMessage>(msg => msg.Subject != null && msg.Subject.Contains(" - [") && msg.Subject.EndsWith("]")),
+                    It.IsAny<CancellationToken>()
+                ),
+                Times.Once
+            );
         }
 
         // TEST FOR SENDING EMAIL SUCCEEDS WHEN SMTP CLIENT OPERATES NORMALLY
@@ -154,6 +164,74 @@ namespace ContactForm.Tests.ServicesTests
             _smtpClientMock.Verify(
                 x => x.SendWithTokenAsync(It.IsAny<MimeMessage>(), It.IsAny<CancellationToken>()),
                 Times.Once
+            );
+        }
+
+        // TEST FOR EMAIL SUBJECT CONTAINS UNIQUE ID
+        [Fact]
+        public async Task SendEmailAsync_SubjectContainsUniqueId()
+        {
+            // ARRANGE - CREATE REQUEST
+            var request = new EmailRequest
+            {
+                Email = "sender@example.com",
+                Username = "Test User",
+                Message = "Test message",
+            };
+            MimeMessage? capturedMessage = null;
+            _smtpClientMock
+                .Setup(x => x.SendWithTokenAsync(It.IsAny<MimeMessage>(), It.IsAny<CancellationToken>()))
+                .Callback<MimeMessage, CancellationToken>((msg, ct) => capturedMessage = msg)
+                .ReturnsAsync(string.Empty);
+
+            // ACT - SEND EMAIL
+            await _emailService.SendEmailAsync(request, 0);
+
+            // ASSERT - VERIFY SUBJECT CONTAINS ID
+            Assert.NotNull(capturedMessage);
+            Assert.NotNull(capturedMessage.Subject);
+            Assert.Contains(" - [", capturedMessage.Subject);
+            Assert.EndsWith("]", capturedMessage.Subject);
+            
+            // ASSERT - EXTRACT ID FROM SUBJECT
+            var idStart = capturedMessage.Subject.IndexOf(" - [") + 4;
+            var idEnd = capturedMessage.Subject.IndexOf("]", idStart);
+            var emailId = capturedMessage.Subject.Substring(idStart, idEnd - idStart);
+            
+            // ASSERT - VERIFY ID FORMAT
+            Assert.Equal(8, emailId.Length);
+            Assert.True(emailId.All(c => char.IsLetterOrDigit(c) && (char.IsUpper(c) || char.IsDigit(c))));
+            
+            // ASSERT - VERIFY EMAIL ID IS ASSIGNED TO REQUEST
+            Assert.NotNull(request.EmailId);
+            Assert.Equal(emailId, request.EmailId);
+        }
+
+        // TEST FOR EMAIL ID IS LOGGED
+        [Fact]
+        public async Task SendEmailAsync_EmailIdIsLogged()
+        {
+            // ARRANGE - CREATE REQUEST
+            var request = new EmailRequest
+            {
+                Email = "sender@example.com",
+                Username = "Test User",
+                Message = "Test message",
+            };
+
+            // ACT - SEND EMAIL
+            await _emailService.SendEmailAsync(request, 0);
+
+            // ASSERT - VERIFY LOGS CONTAIN ID
+            _loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Information,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("[ID:")),
+                    It.IsAny<Exception>(),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()
+                ),
+                Times.AtLeastOnce
             );
         }
 
@@ -223,6 +301,15 @@ namespace ContactForm.Tests.ServicesTests
                 x => x.AuthenticateWithTokenAsync(
                     "test-email@example.com",
                     "test-password-test",
+                    It.IsAny<CancellationToken>()
+                ),
+                Times.Once
+            );
+            
+            // ASSERT - VERIFY SUBJECT CONTAINS ID
+            _smtpClientMock.Verify(
+                x => x.SendWithTokenAsync(
+                    It.Is<MimeMessage>(msg => msg.Subject != null && msg.Subject.Contains(" - [") && msg.Subject.EndsWith("]")),
                     It.IsAny<CancellationToken>()
                 ),
                 Times.Once

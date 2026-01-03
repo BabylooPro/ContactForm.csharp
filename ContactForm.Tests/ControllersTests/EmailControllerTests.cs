@@ -37,6 +37,7 @@ namespace ContactForm.Tests.ControllersTests
             };
             _emailServiceMock
                 .Setup(x => x.SendEmailAsync(It.IsAny<EmailRequest>(), It.IsAny<int>(), false))
+                .Callback<EmailRequest, int, bool>((req, id, test) => req.EmailId = "TEST1234")
                 .ReturnsAsync(true);
 
             // ACT - SEND EMAIL
@@ -44,7 +45,17 @@ namespace ContactForm.Tests.ControllersTests
 
             // ASSERT - CHECK RESULT
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal("Email sent successfully using SMTP_0 ( -> )", okResult.Value);
+            var response = okResult.Value;
+            Assert.NotNull(response);
+            
+            // ASSERT - CHECK RESPONSE CONTAINS MESSAGE AND EMAIL ID
+            var responseType = response.GetType();
+            var messageProperty = responseType.GetProperty("message");
+            var emailIdProperty = responseType.GetProperty("emailId");
+            Assert.NotNull(messageProperty);
+            Assert.NotNull(emailIdProperty);
+            Assert.Equal("Email sent successfully using SMTP_0 ( -> )", messageProperty.GetValue(response)?.ToString());
+            Assert.Equal("TEST1234", emailIdProperty.GetValue(response)?.ToString());
         }
 
         // TEST FOR INVALID SENDING REGULAR EMAIL
@@ -87,6 +98,7 @@ namespace ContactForm.Tests.ControllersTests
             };
             _emailServiceMock
                 .Setup(x => x.SendEmailAsync(It.IsAny<EmailRequest>(), It.IsAny<int>(), true))
+                .Callback<EmailRequest, int, bool>((req, id, test) => req.EmailId = "TEST5678")
                 .ReturnsAsync(true);
 
             // ACT - SEND EMAIL
@@ -94,7 +106,17 @@ namespace ContactForm.Tests.ControllersTests
 
             // ASSERT - CHECK RESULT
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal("Test Email sent successfully using SMTP_0 ( -> )", okResult.Value);
+            var response = okResult.Value;
+            Assert.NotNull(response);
+            
+            // ASSERT - CHECK RESPONSE CONTAINS MESSAGE AND EMAIL ID
+            var responseType = response.GetType();
+            var messageProperty = responseType.GetProperty("message");
+            var emailIdProperty = responseType.GetProperty("emailId");
+            Assert.NotNull(messageProperty);
+            Assert.NotNull(emailIdProperty);
+            Assert.Equal("Test Email sent successfully using SMTP_0 ( -> )", messageProperty.GetValue(response)?.ToString());
+            Assert.Equal("TEST5678", emailIdProperty.GetValue(response)?.ToString());
         }
 
         // TEST FOR INVALID SENDING TEST EMAIL

@@ -34,9 +34,13 @@ namespace ContactForm.MinimalAPI.Controllers
                     return StatusCode(500, "Failed to send email after trying all available SMTP configurations");
                 }
 
-                // RETURN EMAIL SENT SUCCESS MESSAGE WITH SMTP INDEX
+                // RETURN EMAIL SENT SUCCESS MESSAGE WITH SMTP INDEX AND EMAIL ID
                 var smtpConfig = _smtpSettings.Configurations.FirstOrDefault(c => c.Index == smtpId );
-                return Ok($"Email sent successfully using SMTP_{smtpId} ({smtpConfig?.Email} -> {_smtpSettings.ReceptionEmail})");
+                return Ok(new
+                {
+                    message = $"Email sent successfully using SMTP_{smtpId} ({smtpConfig?.Email} -> {_smtpSettings.ReceptionEmail})",
+                    emailId = request.EmailId
+                });
             }
             catch (InvalidOperationException ex)
             {
@@ -68,11 +72,15 @@ namespace ContactForm.MinimalAPI.Controllers
                     return StatusCode(500, "Failed to send test email after trying all available SMTP configurations");
                 }
 
-                // RETURN TEST EMAIL SENT SUCCESS MESSAGE WITH SMTP INDEX
+                // RETURN TEST EMAIL SENT SUCCESS MESSAGE WITH SMTP INDEX AND EMAIL ID
                 var smtpConfig = _smtpSettings.Configurations.FirstOrDefault(c =>
                     c.Index == smtpId
                 );
-                return Ok($"Test Email sent successfully using SMTP_{smtpId} ({smtpConfig?.Email} -> {_smtpSettings.ReceptionEmail})");
+                return Ok(new
+                {
+                    message = $"Test Email sent successfully using SMTP_{smtpId} ({smtpConfig?.Email} -> {_smtpSettings.ReceptionEmail})",
+                    emailId = request.EmailId
+                });
             }
             catch (InvalidOperationException ex)
             {

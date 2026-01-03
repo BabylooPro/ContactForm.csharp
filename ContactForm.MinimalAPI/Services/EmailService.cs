@@ -61,6 +61,16 @@ namespace ContactForm.MinimalAPI.Services
         // METHOD FOR SENDING EMAIL
         public async Task<bool> SendEmailAsync(EmailRequest request, int smtpId, bool useTestEmail = false)
         {
+            return await SendEmailAsyncInternal(request, smtpId, useTestEmail);
+        }
+
+        // INTERNAL METHOD FOR SENDING EMAIL WITH EMAIL ID TRACKING
+        private async Task<bool> SendEmailAsyncInternal(EmailRequest request, int smtpId, bool useTestEmail = false, string? emailId = null)
+        {
+            // ENSURE REQUEST HAS A UNIQUE EMAIL ID
+            emailId ??= Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+            request.EmailId = emailId;
+            
             try
             {
                 // CHECK IF EMAIL IS NULL
@@ -147,7 +157,8 @@ namespace ContactForm.MinimalAPI.Services
                         }
                     }
                 }
-                email.Subject = subject;
+
+                email.Subject = $"{subject} - [{emailId}]";
 
                 // SET EMAIL PRIORITY
                 switch (request.Priority)
@@ -281,7 +292,8 @@ namespace ContactForm.MinimalAPI.Services
 
                 // LOG EMAIL DETAILS
                 _logger.LogInformation(
-                    "Email Details:\nFrom: {From}\nTo: {To}\nSubject: {Subject}\nBody: {Body}",
+                    "Email Details [ID: {EmailId}]:\nFrom: {From}\nTo: {To}\nSubject: {Subject}\nBody: {Body}",
+                    emailId,
                     email.From.ToString(),
                     email.To.ToString(),
                     email.Subject,
@@ -311,9 +323,9 @@ namespace ContactForm.MinimalAPI.Services
                 await _smtpClient.DisconnectWithTokenAsync(true, cancellationToken);
 
                 // LOG SUCCESS
-                _logger.LogInformation("");
+                _logger.LogInformation("Email sent successfully [ID: {EmailId}]", emailId);
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"Email sent successfully using SMTP_{config.Index} ({fromEmail} -> {_smtpSettings.ReceptionEmail})");
+                Console.WriteLine($"Email sent successfully [ID: {emailId}] using SMTP_{config.Index} ({fromEmail} -> {_smtpSettings.ReceptionEmail})");
                 Console.ResetColor();
 
                 // IF EMAIL SENT SUCCESSFULLY, TRACK IT
@@ -327,9 +339,9 @@ namespace ContactForm.MinimalAPI.Services
             catch (Exception ex)
             {
                 // LOG ERROR
-                _logger.LogError("");
+                _logger.LogError(ex, "Failed to send email [ID: {EmailId}] using SMTP_{SmtpId}", emailId, smtpId);
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Failed to send email using SMTP_{smtpId}: {ex.Message}");
+                Console.WriteLine($"Failed to send email [ID: {emailId}] using SMTP_{smtpId}: {ex.Message}");
                 Console.ResetColor();
 
                 // TRY NEXT AVAILABLE SMTP IN SEQUENCE
@@ -341,11 +353,11 @@ namespace ContactForm.MinimalAPI.Services
                 // TRY NEXT SMTP CONFIG
                 if (nextConfig != null)
                 {
-                    _logger.LogInformation("");
+                    _logger.LogInformation("Attempting to use next SMTP configuration [ID: {EmailId}] (SMTP_{SmtpIndex})", emailId, nextConfig.Index);
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"Attempting to use next SMTP configuration (SMTP_{nextConfig.Index})");
+                    Console.WriteLine($"Attempting to use next SMTP configuration [ID: {emailId}] (SMTP_{nextConfig.Index})");
                     Console.ResetColor();
-                    return await SendEmailAsync(request, nextConfig.Index, useTestEmail);
+                    return await SendEmailAsyncInternal(request, nextConfig.Index, useTestEmail, emailId);
                 }
 
                 return false; // RETURN FALSE IF NO SMTP CONFIG IS AVAILABLE

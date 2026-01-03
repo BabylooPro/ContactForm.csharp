@@ -5,6 +5,8 @@ namespace ContactForm.MinimalAPI.Models
 {
     public class EmailRequest
     {
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? EmailId { get; set; }
 
         [Required(ErrorMessage = "The Email field is required.")]
         [EmailAddress(ErrorMessage = "The Email field is not a valid e-mail address.")]

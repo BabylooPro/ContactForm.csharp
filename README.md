@@ -19,6 +19,7 @@ A flexible and customizable contact form backend API built with .NET 8 Minimal A
 - HTML email support with rich formatting
 - Attachment handling with base64 encoding
 - Email priority levels (Low, Normal, High, Urgent)
+- Unique email ID tracking for each sent email
 - AWS Lambda deployment support
 - Environment variable configuration for secure credential management
 - Advanced email tracking with rate limiting and progressive timeout
@@ -214,6 +215,21 @@ Content-Type: application/json
   "Priority": "Normal"                          // EMAIL PRIORITY (LOW, NORMAL, HIGH, URGENT)
 }
 ```
+
+**Response:**
+
+```json
+{
+  "message": "Email sent successfully using SMTP_1 (sender@example.com -> recipient@example.com)",
+  "emailId": "A3F2B1C9"
+}
+```
+
+Each email is assigned a unique 8-character ID that:
+- Appears in the email subject: `Subject - [A3F2B1C9]`
+- Is included in the API response for tracking
+- Is logged in all console and application logs
+- Remains consistent across SMTP failover attempts
 
 ## License
 
