@@ -36,8 +36,7 @@ namespace ContactForm.MinimalAPI.Services
         {
             if (_blockedIps.TryGetValue(ipAddress, out DateTime expirationTime))
             {
-                if (DateTime.UtcNow < expirationTime)
-                    return true;
+                if (DateTime.UtcNow < expirationTime) return true;
                 
                 // EXPIRED BLOCK - REMOVE IT
                 _blockedIps.TryRemove(ipAddress, out _);
@@ -48,8 +47,7 @@ namespace ContactForm.MinimalAPI.Services
 
         public void TrackRequest(string ipAddress, string path, string userAgent)
         {
-            if (string.IsNullOrEmpty(ipAddress) || ipAddress == "unknown")
-                return;
+            if (string.IsNullOrEmpty(ipAddress) || ipAddress == "unknown") return;
 
             var tracker = _ipTracking.GetOrAdd(ipAddress, _ => new RequestTracker());
             
@@ -74,9 +72,7 @@ namespace ContactForm.MinimalAPI.Services
         {
             var expirationTime = DateTime.UtcNow.Add(duration);
             _blockedIps[ipAddress] = expirationTime;
-            
-            _logger.LogWarning("IP {IpAddress} blocked until {ExpirationTime}: {Reason}", 
-                ipAddress, expirationTime, reason);
+            _logger.LogWarning("IP {IpAddress} blocked until {ExpirationTime}: {Reason}", ipAddress, expirationTime, reason);
         }
         
         private void CleanupExpiredEntries(object? state)

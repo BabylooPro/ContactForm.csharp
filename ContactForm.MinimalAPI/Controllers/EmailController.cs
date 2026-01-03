@@ -23,11 +23,7 @@ namespace ContactForm.MinimalAPI.Controllers
         private readonly SmtpSettings _smtpSettings;
 
         // CONSTRUCTOR INRIAIALIZING DEPENDENCY INJECTION
-        public EmailController(
-            IEmailService emailService,
-            ILogger<EmailController> logger,
-            IOptions<SmtpSettings> smtpSettings
-        )
+        public EmailController(IEmailService emailService,ILogger<EmailController> logger, IOptions<SmtpSettings> smtpSettings)
         {
             _emailService = emailService;
             _logger = logger;
@@ -46,23 +42,14 @@ namespace ContactForm.MinimalAPI.Controllers
                 if (!success)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine(
-                        "\nERROR: Failed to send email after trying all available SMTP configurations\n"
-                    );
+                    Console.WriteLine("\nERROR: Failed to send email after trying all available SMTP configurations\n");
                     Console.ResetColor();
-                    return StatusCode(
-                        500,
-                        "Failed to send email after trying all available SMTP configurations"
-                    );
+                    return StatusCode(500, "Failed to send email after trying all available SMTP configurations");
                 }
 
                 // RETURN EMAIL SENT SUCCESS MESSAGE WITH SMTP INDEX
-                var smtpConfig = _smtpSettings.Configurations.FirstOrDefault(c =>
-                    c.Index == smtpId
-                );
-                return Ok(
-                    $"Email sent successfully using SMTP_{smtpId} ({smtpConfig?.Email} -> {_smtpSettings.ReceptionEmail})"
-                );
+                var smtpConfig = _smtpSettings.Configurations.FirstOrDefault(c => c.Index == smtpId );
+                return Ok($"Email sent successfully using SMTP_{smtpId} ({smtpConfig?.Email} -> {_smtpSettings.ReceptionEmail})");
             }
             catch (InvalidOperationException ex)
             {
@@ -89,23 +76,16 @@ namespace ContactForm.MinimalAPI.Controllers
                 if (!success)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine(
-                        "\nERROR: Failed to send test email after trying all available SMTP configurations\n"
-                    );
+                    Console.WriteLine("\nERROR: Failed to send test email after trying all available SMTP configurations\n");
                     Console.ResetColor();
-                    return StatusCode(
-                        500,
-                        "Failed to send test email after trying all available SMTP configurations"
-                    );
+                    return StatusCode(500, "Failed to send test email after trying all available SMTP configurations");
                 }
 
                 // RETURN TEST EMAIL SENT SUCCESS MESSAGE WITH SMTP INDEX
                 var smtpConfig = _smtpSettings.Configurations.FirstOrDefault(c =>
                     c.Index == smtpId
                 );
-                return Ok(
-                    $"Test Email sent successfully using SMTP_{smtpId} ({smtpConfig?.Email} -> {_smtpSettings.ReceptionEmail})"
-                );
+                return Ok($"Test Email sent successfully using SMTP_{smtpId} ({smtpConfig?.Email} -> {_smtpSettings.ReceptionEmail})");
             }
             catch (InvalidOperationException ex)
             {
@@ -114,9 +94,7 @@ namespace ContactForm.MinimalAPI.Controllers
             catch (Exception ex)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine(
-                    $"\nERROR: Unexpected error while sending test email: {ex.Message}\n"
-                );
+                Console.WriteLine($"\nERROR: Unexpected error while sending test email: {ex.Message}\n");
                 Console.ResetColor();
                 return StatusCode(500, "An unexpected error occurred while sending the test email");
             }

@@ -14,9 +14,7 @@ namespace ContactForm.MinimalAPI.Middleware
 
         public async Task InvokeAsync(HttpContext context)
         {
-            if (context.Request.Path.Value?.StartsWith("/api") == true &&
-                !context.Request.Path.Value.StartsWith("/api/v"))
-            {
+            if (context.Request.Path.Value?.StartsWith("/api") == true && !context.Request.Path.Value.StartsWith("/api/v")) {
                 bool hasQuery = context.Request.Query.ContainsKey("api-version");
                 bool hasHeader = context.Request.Headers.Keys.Any(k => k.Equals("X-Version", StringComparison.OrdinalIgnoreCase));
                 bool hasVersion = hasQuery || hasHeader;

@@ -41,9 +41,7 @@ namespace ContactForm.MinimalAPI.Services
         // METHOD FOR GETTING SMTP PASSWORD
         private string GetSmtpPassword(SmtpConfig config, bool useTestEmail = false)
         {
-            var envVar = useTestEmail
-                ? $"SMTP_{config.Index}_PASSWORD_TEST"
-                : $"SMTP_{config.Index}_PASSWORD";
+            var envVar = useTestEmail ? $"SMTP_{config.Index}_PASSWORD_TEST" : $"SMTP_{config.Index}_PASSWORD";
 
             var password = Environment.GetEnvironmentVariable(envVar);
 
@@ -63,9 +61,7 @@ namespace ContactForm.MinimalAPI.Services
             {
                 _logger.LogError("");
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine(
-                    $"\nERROR: SMTP_{id} configuration not found. Available SMTP indexes: {string.Join(", ", _smtpSettings.Configurations.Select(x => x.Index))}\n"
-                );
+                Console.WriteLine($"\nERROR: SMTP_{id} configuration not found. Available SMTP indexes: {string.Join(", ", _smtpSettings.Configurations.Select(x => x.Index))}\n");
                 Console.ResetColor();
                 throw new InvalidOperationException($"SMTP_{id} configuration not found");
             }
@@ -79,21 +75,14 @@ namespace ContactForm.MinimalAPI.Services
         }
 
         // METHOD FOR SENDING EMAIL
-        public async Task<bool> SendEmailAsync(
-            EmailRequest request,
-            int smtpId,
-            bool useTestEmail = false
-        )
+        public async Task<bool> SendEmailAsync(EmailRequest request, int smtpId, bool useTestEmail = false)
         {
             try
             {
                 // CHECK IF EMAIL IS NULL
                 if (string.IsNullOrEmpty(request.Email))
                 {
-                    throw new ArgumentNullException(
-                        nameof(request.Email),
-                        "Email cannot be null or empty"
-                    );
+                    throw new ArgumentNullException(nameof(request.Email), "Email cannot be null or empty");
                 }
 
                 // CHECK IF EMAIL IS UNIQUE
@@ -120,14 +109,12 @@ namespace ContactForm.MinimalAPI.Services
                         if (hours > 0)
                         {
                             timeMessage = $"{hours} hour{(hours > 1 ? "s" : "")}";
-                            if (minutes > 0)
-                                timeMessage += $" {minutes} minute{(minutes > 1 ? "s" : "")}";
+                            if (minutes > 0) timeMessage += $" {minutes} minute{(minutes > 1 ? "s" : "")}";
                         }
                         else if (minutes > 0)
                         {
                             timeMessage = $"{minutes} minute{(minutes > 1 ? "s" : "")}";
-                            if (seconds > 0)
-                                timeMessage += $" {seconds} second{(seconds > 1 ? "s" : "")}";
+                            if (seconds > 0) timeMessage += $" {seconds} second{(seconds > 1 ? "s" : "")}";
                         }
                         else
                         {
@@ -145,9 +132,7 @@ namespace ContactForm.MinimalAPI.Services
                 var config = GetSmtpConfigById(smtpId);
                 if (config == null)
                 {
-                    throw new InvalidOperationException(
-                        $"SMTP configuration with ID {smtpId} not found"
-                    );
+                    throw new InvalidOperationException($"SMTP configuration with ID {smtpId} not found");
                 }
 
                 // CREATE EMAIL MESSAGE
@@ -156,9 +141,7 @@ namespace ContactForm.MinimalAPI.Services
                 // SET EMAIL FROM AND TO
                 var fromEmail = useTestEmail ? config.TestEmail : config.Email;
                 email.From.Add(new MailboxAddress(fromEmail, fromEmail));
-                email.To.Add(
-                    new MailboxAddress(_smtpSettings.ReceptionEmail, _smtpSettings.ReceptionEmail)
-                );
+                email.To.Add(new MailboxAddress(_smtpSettings.ReceptionEmail, _smtpSettings.ReceptionEmail));
 
                 // SET CUSTOM SUBJECT OR USE DEFAULT
                 var subject = request.SubjectTemplate;
@@ -241,9 +224,7 @@ namespace ContactForm.MinimalAPI.Services
                     // ADD CUSTOM FIELDS IF ANY
                     if (request.CustomFields?.Any() == true)
                     {
-                        bodyText += request.IsHtml
-                            ? "<h3>Custom Fields:</h3><ul>"
-                            : "\nCustom Fields:";
+                        bodyText += request.IsHtml ? "<h3>Custom Fields:</h3><ul>" : "\nCustom Fields:";
                         foreach (var field in request.CustomFields)
                         {
                             bodyText += request.IsHtml
@@ -295,38 +276,22 @@ namespace ContactForm.MinimalAPI.Services
                         {
                             if (string.IsNullOrEmpty(attachment.Base64Content))
                             {
-                                throw new InvalidOperationException(
-                                    $"Base64 content is missing for attachment {attachment.FileName}"
-                                );
+                                throw new InvalidOperationException($"Base64 content is missing for attachment {attachment.FileName}");
                             }
 
                             var content = Convert.FromBase64String(attachment.Base64Content);
-                            var contentType =
-                                attachment.ContentType
-                                ?? MimeTypes.GetMimeType(attachment.FileName ?? "unknown");
-                            builder.Attachments.Add(
-                                attachment.FileName ?? "unnamed",
-                                content,
-                                ContentType.Parse(contentType)
-                            );
+                            var contentType = attachment.ContentType ?? MimeTypes.GetMimeType(attachment.FileName ?? "unknown");
+                            builder.Attachments.Add(attachment.FileName ?? "unnamed", content, ContentType.Parse(contentType));
                         }
                         catch (FormatException ex)
                         {
-                            _logger.LogError(
-                                $"Invalid Base64 content for attachment {attachment.FileName}: {ex.Message}"
-                            );
-                            throw new InvalidOperationException(
-                                $"Invalid Base64 content for attachment {attachment.FileName}"
-                            );
+                            _logger.LogError($"Invalid Base64 content for attachment {attachment.FileName}: {ex.Message}");
+                            throw new InvalidOperationException($"Invalid Base64 content for attachment {attachment.FileName}");
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError(
-                                $"Failed to add attachment {attachment.FileName}: {ex.Message}"
-                            );
-                            throw new InvalidOperationException(
-                                $"Failed to process attachment {attachment.FileName}"
-                            );
+                            _logger.LogError($"Failed to add attachment {attachment.FileName}: {ex.Message}");
+                            throw new InvalidOperationException($"Failed to process attachment {attachment.FileName}");
                         }
                     }
                 }
@@ -367,9 +332,7 @@ namespace ContactForm.MinimalAPI.Services
                 // LOG SUCCESS
                 _logger.LogInformation("");
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine(
-                    $"Email sent successfully using SMTP_{config.Index} ({fromEmail} -> {_smtpSettings.ReceptionEmail})"
-                );
+                Console.WriteLine($"Email sent successfully using SMTP_{config.Index} ({fromEmail} -> {_smtpSettings.ReceptionEmail})");
                 Console.ResetColor();
 
                 // IF EMAIL SENT SUCCESSFULLY, TRACK IT
@@ -399,9 +362,7 @@ namespace ContactForm.MinimalAPI.Services
                 {
                     _logger.LogInformation("");
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine(
-                        $"Attempting to use next SMTP configuration (SMTP_{nextConfig.Index})"
-                    );
+                    Console.WriteLine($"Attempting to use next SMTP configuration (SMTP_{nextConfig.Index})");
                     Console.ResetColor();
                     return await SendEmailAsync(request, nextConfig.Index, useTestEmail);
                 }

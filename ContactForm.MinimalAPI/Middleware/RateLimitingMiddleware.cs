@@ -15,11 +15,7 @@ namespace ContactForm.MinimalAPI.Middleware
         private readonly FixedWindowRateLimiter _rateLimiter;
         private readonly IIpProtectionService _ipProtectionService;
 
-        public RateLimitingMiddleware(
-            RequestDelegate next, 
-            ILogger<RateLimitingMiddleware> logger,
-            IIpProtectionService ipProtectionService)
-        {
+        public RateLimitingMiddleware(RequestDelegate next, ILogger<RateLimitingMiddleware> logger, IIpProtectionService ipProtectionService) {
             _next = next;
             _logger = logger;
             _ipProtectionService = ipProtectionService;
@@ -56,16 +52,14 @@ namespace ContactForm.MinimalAPI.Middleware
             // ACQUIRE A RATE LIMITING LEASE
             using RateLimitLease lease = await _rateLimiter.AcquireAsync(1);
             
+            // CHECK IF THE REQUEST IS ALLOWED OR DENIED DUE TO RATE LIMITING
             if (lease.IsAcquired)
             {
-                // REQUEST IS ALLOWED
                 await _next(context);
             }
             else
             {
-                // REQUEST IS DENIED DUE TO RATE LIMITING
                 _logger.LogWarning("Rate limit exceeded for IP: {ClientIp}", clientIp);
-                
                 context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
                 context.Response.Headers["Retry-After"] = "60"; // RETRY AFTER 60 SECONDS
                 await context.Response.WriteAsync("Too many requests. Please try again later.");

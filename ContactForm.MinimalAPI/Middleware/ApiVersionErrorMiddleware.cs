@@ -31,7 +31,7 @@ namespace ContactForm.MinimalAPI.Middleware
                         status = 404,
                         title = "Unsupported API Version",
                         detail = $"The API version '{requestedVersion}' is not supported. Supported versions: 1.0",
-                        requestedVersion = requestedVersion,
+                        requestedVersion,
                         supportedVersions = new[] { "1.0" }
                     };
 

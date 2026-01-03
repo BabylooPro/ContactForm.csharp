@@ -64,6 +64,5 @@ namespace ContactForm.MinimalAPI.Controllers
             // DEFAULT VERSION
             return "Default";
         }
-
     }
 }

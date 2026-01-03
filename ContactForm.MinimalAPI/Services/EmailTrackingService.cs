@@ -43,10 +43,12 @@ namespace ContactForm.MinimalAPI.Services
             
             _trackedEmails.AddOrUpdate(
                 key,
+
                 // ADD NEW ENTRY IF KEY DOESN'T EXIST
                 _ => new EmailUsageData { UsageCount = 1, LastUsed = DateTime.UtcNow },
+
                 // UPDATE EXISTING ENTRY IF KEY EXISTS
-                (_, existingData) => new EmailUsageData 
+                (_, existingData) => new EmailUsageData
                 { 
                     UsageCount = existingData.UsageCount + 1, 
                     LastUsed = DateTime.UtcNow 

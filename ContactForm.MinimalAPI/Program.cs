@@ -53,10 +53,7 @@ namespace ContactForm.MinimalAPI
             }
         }
 
-        public static void ConfigureServices(
-            WebApplicationBuilder builder,
-            IServiceCollection services
-        )
+        public static void ConfigureServices(WebApplicationBuilder builder, IServiceCollection services)
         {
             // LOADING ENVIRONMENT VARIABLES
             DotEnv.Load();
@@ -86,21 +83,20 @@ namespace ContactForm.MinimalAPI
             {
                 options.AddDefaultPolicy(policy =>
                 {
-                    policy
-                        .WithOrigins(
-                            "http://localhost:3000",
-                            "https://maxremy.dev",
-                            "https://keypops.app"
-                        )
-                        .AllowAnyMethod()
-                        .AllowAnyHeader()
-                        .WithExposedHeaders(
-                            "Content-Type",
-                            "Authorization",
-                            "X-Api-Key",
-                            "X-Amz-Date",
-                            "X-Amz-Security-Token"
-                        );
+                    policy.WithOrigins(
+                        "http://localhost:3000",
+                        "https://maxremy.dev",
+                        "https://keypops.app"
+                    )
+                    .AllowAnyMethod()
+                    .AllowAnyHeader()
+                    .WithExposedHeaders(
+                        "Content-Type",
+                        "Authorization",
+                        "X-Api-Key",
+                        "X-Amz-Date",
+                        "X-Amz-Security-Token"
+                    );
                 });
             });
 
@@ -232,9 +228,7 @@ namespace ContactForm.MinimalAPI
             {
                 // NEED TO HANDLE SHUTDOWN WITHOUT DIRECT APP REFERENCE
                 logger.LogCritical("SMTP TEST FAILED");
-                throw new InvalidOperationException(
-                    "SMTP connection test failed. Application must be terminated."
-                );
+                throw new InvalidOperationException("SMTP connection test failed. Application must be terminated.");
             }
         }
     }

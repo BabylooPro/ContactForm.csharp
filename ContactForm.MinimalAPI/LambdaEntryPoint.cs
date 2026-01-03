@@ -11,38 +11,33 @@ namespace ContactForm.MinimalAPI
         // CONFIGURE WEB HOST BUILDER
         protected override void Init(IWebHostBuilder builder)
         {
-            builder
-                .ConfigureServices(services =>
-                {
-                    var webBuilder = WebApplication.CreateBuilder();
-                    Program.ConfigureServices(webBuilder, services);
+            builder.ConfigureServices(services =>
+            {
+                var webBuilder = WebApplication.CreateBuilder();
+                Program.ConfigureServices(webBuilder, services);
 
-                    // ENSURE VERSIONING SERVICES ARE REGISTERED
-                    if (!services.Any(s => s.ServiceType == typeof(IApiVersionDescriptionProvider)))
-                    {
-                        services.AddApiVersioning().AddApiExplorer();
-                    }
-                })
-                .Configure(app =>
+                // ENSURE VERSIONING SERVICES ARE REGISTERED
+                if (!services.Any(s => s.ServiceType == typeof(IApiVersionDescriptionProvider)))
                 {
-                    app.UseCors(builder =>
-                        builder
-                            .WithOrigins(
-                                "http://localhost:3000",
-                                "https://maxremy.dev",
-                                "https://keypops.app"
-                            )
-                            .AllowAnyMethod()
-                            .AllowAnyHeader()
-                    );
-                    Program.ConfigureApp(app);
-                });
+                    services.AddApiVersioning().AddApiExplorer();
+                }
+            })
+            .Configure(app =>
+            {
+                app.UseCors(builder =>
+                    builder.WithOrigins(
+                        "http://localhost:3000",
+                        "https://maxremy.dev",
+                        "https://keypops.app"
+                    )
+                    .AllowAnyMethod()
+                    .AllowAnyHeader()
+                );
+                Program.ConfigureApp(app);
+            });
         }
 
-        public override async Task<APIGatewayProxyResponse> FunctionHandlerAsync(
-            APIGatewayProxyRequest request,
-            ILambdaContext lambdaContext
-        )
+        public override async Task<APIGatewayProxyResponse> FunctionHandlerAsync(APIGatewayProxyRequest request, ILambdaContext lambdaContext)
         {
             // CORS HEADER TO GET AND POST RESPONSE
             try
@@ -61,8 +56,7 @@ namespace ContactForm.MinimalAPI
 
                 // CORS HEADERS TO ENABLE CROSS-ORIGIN REQUEST
                 response.Headers["Access-Control-Allow-Origin"] = GetOriginHeader(request);
-                response.Headers["Access-Control-Allow-Headers"] =
-                    "Content-Type, Authorization, X-Api-Key, X-Amz-Date, X-Amz-Security-Token, X-Version";
+                response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Api-Key, X-Amz-Date, X-Amz-Security-Token, X-Version";
                 response.Headers["Access-Control-Allow-Methods"] = "GET, POST";
                 response.Headers["Access-Control-Expose-Headers"] = "X-Version";
 
@@ -123,16 +117,13 @@ namespace ContactForm.MinimalAPI
             };
 
             // CHECK IF ORIGIN HEADER IS PRESENT
-            if (request.Headers != null &&
-                request.Headers.TryGetValue("Origin", out var origin) &&
-                allowedOrigins.Contains(origin))
+            if (request.Headers != null && request.Headers.TryGetValue("Origin", out var origin) && allowedOrigins.Contains(origin))
             {
                 return origin;
             }
 
             // FALLBACK TO REFERER IF NO ORIGIN
-            if (request.Headers != null &&
-                request.Headers.TryGetValue("Referer", out var referer))
+            if (request.Headers != null && request.Headers.TryGetValue("Referer", out var referer))
             {
                 foreach (var allowedOrigin in allowedOrigins)
                 {
