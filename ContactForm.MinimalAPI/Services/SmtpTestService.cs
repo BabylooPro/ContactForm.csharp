@@ -1,15 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using ContactForm.MinimalAPI.Interfaces;
 using ContactForm.MinimalAPI.Models;
 using ContactForm.MinimalAPI.Utilities;
-using MailKit.Security;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace ContactForm.MinimalAPI.Services
 {

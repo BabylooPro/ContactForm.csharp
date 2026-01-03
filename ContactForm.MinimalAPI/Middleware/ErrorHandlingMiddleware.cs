@@ -1,8 +1,4 @@
-using Microsoft.AspNetCore.Http;
-using System;
 using System.Net;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace ContactForm.MinimalAPI.Middleware
 {

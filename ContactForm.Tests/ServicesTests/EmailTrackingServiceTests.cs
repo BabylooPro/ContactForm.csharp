@@ -1,8 +1,5 @@
-using System;
 using System.Collections.Concurrent;
-using System.Threading.Tasks;
 using ContactForm.MinimalAPI.Services;
-using Xunit;
 
 namespace ContactForm.Tests.ServicesTests
 {

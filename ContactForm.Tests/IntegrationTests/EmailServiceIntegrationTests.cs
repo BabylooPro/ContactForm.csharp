@@ -1,16 +1,10 @@
-using Xunit;
 using Moq;
 using ContactForm.MinimalAPI.Services;
 using ContactForm.MinimalAPI.Models;
 using ContactForm.MinimalAPI.Interfaces;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
 using MailKit.Security;
-using Microsoft.Extensions.DependencyInjection;
 using MimeKit;
-using System.Threading;
 
 namespace ContactForm.Tests.IntegrationTests
 {

@@ -2,9 +2,6 @@ using ContactForm.MinimalAPI.Interfaces;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace ContactForm.MinimalAPI.Services
 {

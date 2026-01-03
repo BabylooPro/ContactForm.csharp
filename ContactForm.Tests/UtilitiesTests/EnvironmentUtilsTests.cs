@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using ContactForm.MinimalAPI.Models;
 using ContactForm.MinimalAPI.Utilities;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Xunit;
 
 namespace ContactForm.Tests.UtilitiesTests
 {

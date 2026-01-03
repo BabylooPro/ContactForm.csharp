@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text.Json;
 using ContactForm.Tests.TestConfiguration;
-using Xunit;
 
 namespace ContactForm.Tests.ControllersTests
 {

@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using ContactForm.MinimalAPI.Models;
 
 namespace ContactForm.MinimalAPI.Interfaces

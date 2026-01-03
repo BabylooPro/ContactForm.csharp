@@ -1,7 +1,5 @@
-using Xunit;
 using System.ComponentModel.DataAnnotations;
 using ContactForm.MinimalAPI.Models;
-using System.Collections.Generic;
 
 namespace ContactForm.Tests.Models
 {

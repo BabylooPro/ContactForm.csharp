@@ -1,7 +1,5 @@
-using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Microsoft.AspNetCore.Http;
 
 namespace ContactForm.MinimalAPI.Middleware
 {

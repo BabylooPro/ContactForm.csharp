@@ -1,12 +1,7 @@
-using System.IO;
 using System.Net;
-using System.Threading.Tasks;
 using ContactForm.MinimalAPI.Middleware;
 using ContactForm.MinimalAPI.Services;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace ContactForm.Tests.ServicesTests
 {

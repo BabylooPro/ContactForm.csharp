@@ -1,9 +1,5 @@
-using System;
-using System.Threading;
 using ContactForm.MinimalAPI.Services;
-using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace ContactForm.Tests.ServicesTests
 {

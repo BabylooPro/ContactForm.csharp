@@ -3,13 +3,7 @@ using ContactForm.MinimalAPI;
 using ContactForm.MinimalAPI.Interfaces;
 using ContactForm.MinimalAPI.Models;
 using ContactForm.MinimalAPI.Services;
-using MailKit.Net.Smtp;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Moq;
 
 namespace ContactForm.Tests.IntegrationTests
 {

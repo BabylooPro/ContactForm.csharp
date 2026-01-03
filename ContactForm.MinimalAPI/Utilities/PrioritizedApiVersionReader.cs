@@ -1,6 +1,4 @@
 using Asp.Versioning;
-using Asp.Versioning.ApiExplorer;
-using Microsoft.AspNetCore.Http;
 
 namespace ContactForm.MinimalAPI.Utilities
 {

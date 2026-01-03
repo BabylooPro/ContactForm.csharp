@@ -1,21 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
 using ContactForm.MinimalAPI.Interfaces;
 using ContactForm.MinimalAPI.Middleware;
-using ContactForm.MinimalAPI.Models;
 using ContactForm.MinimalAPI.Services;
 using ContactForm.MinimalAPI.Utilities;
 using dotenv.net;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http.Json;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ContactForm.Tests")]

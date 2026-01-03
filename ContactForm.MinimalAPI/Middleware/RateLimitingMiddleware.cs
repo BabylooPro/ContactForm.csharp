@@ -1,9 +1,4 @@
-using System;
 using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
-using System.Threading.Tasks;
 using ContactForm.MinimalAPI.Services;
 
 namespace ContactForm.MinimalAPI.Middleware

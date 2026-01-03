@@ -1,7 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using MailKit;
 using MailKit.Security;
 using MimeKit;
 
