@@ -1,4 +1,4 @@
-# CONTACT FORM MINIMAL API DOTNET 8.0 / AWS LAMBDA - API GATEWAY
+# BACKEND CONTACT FORM API WITH DOTNET 8.0 POWER BY AWS LAMBDA
 
 [VERSION_BADGE]: https://img.shields.io/badge/dotnet-8.0.+-purple.svg
 [LICENSE_BADGE]: https://img.shields.io/badge/license-MIT-blue.svg
@@ -10,7 +10,7 @@
 
 ![Version][VERSION_BADGE] [![License][LICENSE_BADGE]][LICENSE_URL] [![TODO][TODO_BADGE]][TODO_URL] [![DOCS][DOCS_BADGE]][DOCS_URL]
 
-A flexible and customizable contact form backend API built with .NET 8 Minimal API. This service enables easy integration of contact forms on websites by providing a robust email sending service with multiple SMTP configurations, customizable templates, and attachment support.
+A flexible and customizable contact form backend API built with .NET 8 API. This service enables easy integration of contact forms on websites by providing a robust email sending service with multiple SMTP configurations, customizable templates, and attachment support.
 
 ## Features
 
