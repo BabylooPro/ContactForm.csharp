@@ -49,7 +49,7 @@ namespace ContactForm.MinimalAPI
             DotEnv.Load();
 
             // GET SMTP CONFIGURATIONS FROM ENVIRONMENT VARIABLE
-            var config = Utilities.EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
+            var config = EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
 
             // DYNAMICALLY CHECK FOR MISSING SMTP PASSWORD VARIABLES
             var missingVariables = config
@@ -68,16 +68,22 @@ namespace ContactForm.MinimalAPI
                 );
             }
 
+            // LOAD CORS ORIGINS FROM ENVIRONMENT VARIABLES
+            var corsOrigins = EnvironmentUtils.LoadCorsOriginsFromEnvironment();
+
             // ADDING SERVICES WITH CORS POLICY
             services.AddCors(options =>
             {
                 options.AddDefaultPolicy(policy =>
                 {
-                    policy.WithOrigins(
-                        "http://localhost:3000",
-                        "https://maxremy.dev", // TODO: INSERT THIS TO VARIABLE ENVIRONNEMENT BY INDEXING, NO HARDCODED WEBSITE HERE
-                        "https://keypops.app"
-                    )
+                    policy.SetIsOriginAllowed(origin =>
+                    {
+                        // ALLOW ALL LOCALHOST ORIGINS (ANY PORT)
+                        if (EnvironmentUtils.IsLocalhostOrigin(origin)) return true;
+                        
+                        // CHECK IF ORIGIN IS IN ALLOWED LIST
+                        return corsOrigins.Contains(origin);
+                    })
                     .AllowAnyMethod()
                     .AllowAnyHeader()
                     .WithExposedHeaders(
@@ -97,7 +103,7 @@ namespace ContactForm.MinimalAPI
             });
 
             // CONFIGURE SERVICES
-            Utilities.EnvironmentUtils.ConfigureSmtpSettings(services, config);
+            EnvironmentUtils.ConfigureSmtpSettings(services, config);
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<ISmtpTestService, SmtpTestService>();
             services.AddScoped<ISmtpClientWrapper, SmtpClientWrapper>();
@@ -120,7 +126,7 @@ namespace ContactForm.MinimalAPI
                 options.UnsupportedApiVersionStatusCode = 404;
 
                 // CUSTOM API VERSION READER PRIORITIZING QUERY STRING
-                options.ApiVersionReader = new Utilities.PrioritizedApiVersionReader();
+                options.ApiVersionReader = new PrioritizedApiVersionReader();
             }).AddApiExplorer(options =>
             {
                 // FORMAT VERSION AS 'v'MAJOR[.MINOR][-STATUS]

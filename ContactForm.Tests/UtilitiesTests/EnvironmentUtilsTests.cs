@@ -17,6 +17,9 @@ namespace ContactForm.Tests.UtilitiesTests
             SaveEnvironmentVariable("SMTP_CONFIGURATIONS");
             SaveEnvironmentVariable("SMTP_RECEPTION_EMAIL");
             SaveEnvironmentVariable("SMTP_CATCHALL_EMAIL");
+            
+            // SAVE CORS ORIGIN VARIABLES (UP TO 10 FOR TESTING)
+            for (int i = 1; i <= 10; i++) SaveEnvironmentVariable($"CORS_{i}_ORIGIN");
         }
 
         // SAVE ENVIRONMENT VARIABLE VALUE
@@ -42,10 +45,8 @@ namespace ContactForm.Tests.UtilitiesTests
         // CLEANUP - RESTORE ORIGINAL ENVIRONMENT VARIABLES AND DELETE TEMP FILES
         public void Dispose()
         {
-            foreach (var key in _originalEnvVars.Keys)
-            {
-                RestoreEnvironmentVariable(key);
-            }
+            foreach (var key in _originalEnvVars.Keys) RestoreEnvironmentVariable(key); 
+            for (int i = 1; i <= 10; i++) RestoreEnvironmentVariable($"CORS_{i}_ORIGIN");
 
             foreach (var tempFile in _tempFiles)
             {
@@ -766,6 +767,275 @@ namespace ContactForm.Tests.UtilitiesTests
                 Environment.SetEnvironmentVariable("SMTP_RECEPTION_EMAIL", originalReceptionEmail);
                 Environment.SetEnvironmentVariable("SMTP_CATCHALL_EMAIL", originalCatchAllEmail);
             }
+        }
+
+        // TEST FOR LOADING CORS ORIGINS FROM ENVIRONMENT VARIABLES WITH SINGLE ORIGIN
+        [Fact]
+        public void LoadCorsOriginsFromEnvironment_SingleOrigin_ReturnsOrigin()
+        {
+            // ARRANGE - SET CORS ORIGIN
+            Environment.SetEnvironmentVariable("CORS_1_ORIGIN", "https://example.com");
+
+            try
+            {
+                // ACT - LOAD CORS ORIGINS
+                var result = EnvironmentUtils.LoadCorsOriginsFromEnvironment();
+
+                // ASSERT - VERIFY RESULT
+                Assert.Single(result);
+                Assert.Contains("https://example.com", result);
+            }
+            finally
+            {
+                // CLEANUP
+                Environment.SetEnvironmentVariable("CORS_1_ORIGIN", null);
+            }
+        }
+
+        // TEST FOR LOADING CORS ORIGINS FROM ENVIRONMENT VARIABLES WITH MULTIPLE ORIGINS
+        [Fact]
+        public void LoadCorsOriginsFromEnvironment_MultipleOrigins_ReturnsAllOrigins()
+        {
+            // ARRANGE - SET MULTIPLE CORS ORIGINS
+            Environment.SetEnvironmentVariable("CORS_1_ORIGIN", "https://example.com");
+            Environment.SetEnvironmentVariable("CORS_2_ORIGIN", "https://another-domain.com");
+            Environment.SetEnvironmentVariable("CORS_3_ORIGIN", "https://third-domain.com");
+
+            try
+            {
+                // ACT - LOAD CORS ORIGINS
+                var result = EnvironmentUtils.LoadCorsOriginsFromEnvironment();
+
+                // ASSERT - VERIFY RESULT
+                Assert.Equal(3, result.Count);
+                Assert.Contains("https://example.com", result);
+                Assert.Contains("https://another-domain.com", result);
+                Assert.Contains("https://third-domain.com", result);
+            }
+            finally
+            {
+                // CLEANUP
+                Environment.SetEnvironmentVariable("CORS_1_ORIGIN", null);
+                Environment.SetEnvironmentVariable("CORS_2_ORIGIN", null);
+                Environment.SetEnvironmentVariable("CORS_3_ORIGIN", null);
+            }
+        }
+
+        // TEST FOR LOADING CORS ORIGINS FROM ENVIRONMENT VARIABLES WITH NO ORIGINS
+        [Fact]
+        public void LoadCorsOriginsFromEnvironment_NoOrigins_ReturnsEmptyList()
+        {
+            // ARRANGE - CLEAR ALL CORS ORIGINS
+            for (int i = 1; i <= 10; i++)
+            {
+                Environment.SetEnvironmentVariable($"CORS_{i}_ORIGIN", null);
+            }
+
+            // ACT - LOAD CORS ORIGINS
+            var result = EnvironmentUtils.LoadCorsOriginsFromEnvironment();
+
+            // ASSERT - VERIFY RESULT
+            Assert.Empty(result);
+        }
+
+        // TEST FOR LOADING CORS ORIGINS FROM ENVIRONMENT VARIABLES WITH GAPS IN INDEXING
+        [Fact]
+        public void LoadCorsOriginsFromEnvironment_GapsInIndexing_StopsAtFirstGap()
+        {
+            // ARRANGE - SET ORIGINS WITH GAP
+            Environment.SetEnvironmentVariable("CORS_1_ORIGIN", "https://example.com");
+            Environment.SetEnvironmentVariable("CORS_2_ORIGIN", "https://another-domain.com");
+            Environment.SetEnvironmentVariable("CORS_3_ORIGIN", null);
+            Environment.SetEnvironmentVariable("CORS_4_ORIGIN", "https://fourth-domain.com");
+
+            try
+            {
+                // ACT - LOAD CORS ORIGINS
+                var result = EnvironmentUtils.LoadCorsOriginsFromEnvironment();
+
+                // ASSERT - VERIFY RESULT (SHOULD STOP AT GAP)
+                Assert.Equal(2, result.Count);
+                Assert.Contains("https://example.com", result);
+                Assert.Contains("https://another-domain.com", result);
+                Assert.DoesNotContain("https://fourth-domain.com", result);
+            }
+            finally
+            {
+                // CLEANUP
+                Environment.SetEnvironmentVariable("CORS_1_ORIGIN", null);
+                Environment.SetEnvironmentVariable("CORS_2_ORIGIN", null);
+                Environment.SetEnvironmentVariable("CORS_4_ORIGIN", null);
+            }
+        }
+
+        // TEST FOR LOADING CORS ORIGINS FROM ENVIRONMENT VARIABLES WITH DUPLICATES
+        [Fact]
+        public void LoadCorsOriginsFromEnvironment_DuplicateOrigins_ReturnsUniqueOrigins()
+        {
+            // ARRANGE - SET DUPLICATE ORIGINS
+            Environment.SetEnvironmentVariable("CORS_1_ORIGIN", "https://example.com");
+            Environment.SetEnvironmentVariable("CORS_2_ORIGIN", "https://example.com");
+
+            try
+            {
+                // ACT - LOAD CORS ORIGINS
+                var result = EnvironmentUtils.LoadCorsOriginsFromEnvironment();
+
+                // ASSERT - VERIFY RESULT (SHOULD CONTAIN ONLY ONE)
+                Assert.Single(result);
+                Assert.Contains("https://example.com", result);
+            }
+            finally
+            {
+                // CLEANUP
+                Environment.SetEnvironmentVariable("CORS_1_ORIGIN", null);
+                Environment.SetEnvironmentVariable("CORS_2_ORIGIN", null);
+            }
+        }
+
+        // TEST FOR LOADING CORS ORIGINS FROM ENVIRONMENT VARIABLES WITH WHITESPACE
+        [Fact]
+        public void LoadCorsOriginsFromEnvironment_WhitespaceInOrigin_TrimsWhitespace()
+        {
+            // ARRANGE - SET ORIGIN WITH WHITESPACE
+            Environment.SetEnvironmentVariable("CORS_1_ORIGIN", "  https://example.com  ");
+
+            try
+            {
+                // ACT - LOAD CORS ORIGINS
+                var result = EnvironmentUtils.LoadCorsOriginsFromEnvironment();
+
+                // ASSERT - VERIFY RESULT (SHOULD BE TRIMMED)
+                Assert.Single(result);
+                Assert.Contains("https://example.com", result);
+                Assert.DoesNotContain("  https://example.com  ", result);
+            }
+            finally
+            {
+                // CLEANUP
+                Environment.SetEnvironmentVariable("CORS_1_ORIGIN", null);
+            }
+        }
+
+        // TEST FOR LOADING CORS ORIGINS FROM ENVIRONMENT VARIABLES WITH EMPTY STRING
+        [Fact]
+        public void LoadCorsOriginsFromEnvironment_EmptyString_StopsAtEmpty()
+        {
+            // ARRANGE - SET EMPTY ORIGIN (FUNCTION STOPS AT FIRST EMPTY/NULL)
+            Environment.SetEnvironmentVariable("CORS_1_ORIGIN", "");
+            Environment.SetEnvironmentVariable("CORS_2_ORIGIN", "https://example.com");
+
+            try
+            {
+                // ACT - LOAD CORS ORIGINS
+                var result = EnvironmentUtils.LoadCorsOriginsFromEnvironment();
+
+                // ASSERT - VERIFY RESULT
+                Assert.Empty(result);
+            }
+            finally
+            {
+                // CLEANUP
+                Environment.SetEnvironmentVariable("CORS_1_ORIGIN", null);
+                Environment.SetEnvironmentVariable("CORS_2_ORIGIN", null);
+            }
+        }
+
+        // TEST FOR LOADING CORS ORIGINS FROM ENVIRONMENT VARIABLES WITH WHITESPACE ONLY
+        [Fact]
+        public void LoadCorsOriginsFromEnvironment_WhitespaceOnly_StopsAtWhitespace()
+        {
+            // ARRANGE - SET WHITESPACE ORIGIN
+            Environment.SetEnvironmentVariable("CORS_1_ORIGIN", "   ");
+            Environment.SetEnvironmentVariable("CORS_2_ORIGIN", "https://example.com");
+
+            try
+            {
+                // ACT - LOAD CORS ORIGINS
+                var result = EnvironmentUtils.LoadCorsOriginsFromEnvironment();
+
+                // ASSERT - VERIFY RESULT
+                Assert.Empty(result);
+            }
+            finally
+            {
+                // CLEANUP
+                Environment.SetEnvironmentVariable("CORS_1_ORIGIN", null);
+                Environment.SetEnvironmentVariable("CORS_2_ORIGIN", null);
+            }
+        }
+
+        // TEST FOR ISLOCALHOSTORIGIN WITH HTTP LOCALHOST
+        [Fact]
+        public void IsLocalhostOrigin_HttpLocalhost_ReturnsTrue()
+        {
+            // ACT & ASSERT - CHECK IF LOCALHOST ORIGIN IS TRUE
+            Assert.True(EnvironmentUtils.IsLocalhostOrigin("http://localhost"));
+            Assert.True(EnvironmentUtils.IsLocalhostOrigin("http://localhost:3000"));
+            Assert.True(EnvironmentUtils.IsLocalhostOrigin("http://localhost:8080"));
+            Assert.True(EnvironmentUtils.IsLocalhostOrigin("http://localhost:5000"));
+        }
+
+        // TEST FOR ISLOCALHOSTORIGIN WITH HTTPS LOCALHOST
+        [Fact]
+        public void IsLocalhostOrigin_HttpsLocalhost_ReturnsTrue()
+        {
+            // ACT & ASSERT - CHECK IF LOCALHOST ORIGIN IS TRUE
+            Assert.True(EnvironmentUtils.IsLocalhostOrigin("https://localhost"));
+            Assert.True(EnvironmentUtils.IsLocalhostOrigin("https://localhost:3000"));
+            Assert.True(EnvironmentUtils.IsLocalhostOrigin("https://localhost:8443"));
+        }
+
+        // TEST FOR ISLOCALHOSTORIGIN WITH 127.0.0.1
+        [Fact]
+        public void IsLocalhostOrigin_127001_ReturnsTrue()
+        {
+            // ACT & ASSERT - CHECK IF LOCALHOST ORIGIN IS TRUE
+            Assert.True(EnvironmentUtils.IsLocalhostOrigin("http://127.0.0.1"));
+            Assert.True(EnvironmentUtils.IsLocalhostOrigin("http://127.0.0.1:3000"));
+            Assert.True(EnvironmentUtils.IsLocalhostOrigin("https://127.0.0.1"));
+            Assert.True(EnvironmentUtils.IsLocalhostOrigin("https://127.0.0.1:8443"));
+        }
+
+        // TEST FOR ISLOCALHOSTORIGIN WITH CASE INSENSITIVITY
+        [Fact]
+        public void IsLocalhostOrigin_CaseInsensitive_ReturnsTrue()
+        {
+            // ACT & ASSERT - CHECK IF LOCALHOST ORIGIN IS TRUE
+            Assert.True(EnvironmentUtils.IsLocalhostOrigin("HTTP://LOCALHOST:3000"));
+            Assert.True(EnvironmentUtils.IsLocalhostOrigin("HTTPS://LOCALHOST:8080"));
+            Assert.True(EnvironmentUtils.IsLocalhostOrigin("Http://Localhost:5000"));
+        }
+
+        // TEST FOR ISLOCALHOSTORIGIN WITH NON-LOCALHOST ORIGINS
+        [Fact]
+        public void IsLocalhostOrigin_NonLocalhost_ReturnsFalse()
+        {
+            // ACT & ASSERT - CHECK IF LOCALHOST ORIGIN IS FALSE
+            Assert.False(EnvironmentUtils.IsLocalhostOrigin("https://example.com"));
+            Assert.False(EnvironmentUtils.IsLocalhostOrigin("http://example.com:3000"));
+            Assert.False(EnvironmentUtils.IsLocalhostOrigin("https://maxremy.dev"));
+            Assert.False(EnvironmentUtils.IsLocalhostOrigin("https://keypops.app"));
+            Assert.False(EnvironmentUtils.IsLocalhostOrigin("http://192.168.1.1"));
+        }
+
+        // TEST FOR ISLOCALHOSTORIGIN WITH NULL OR EMPTY
+        [Fact]
+        public void IsLocalhostOrigin_NullOrEmpty_ReturnsFalse()
+        {
+            // ACT & ASSERT - CHECK IF LOCALHOST ORIGIN IS FALSE
+            Assert.False(EnvironmentUtils.IsLocalhostOrigin(null!));
+            Assert.False(EnvironmentUtils.IsLocalhostOrigin(""));
+            Assert.False(EnvironmentUtils.IsLocalhostOrigin("   "));
+        }
+
+        // TEST FOR ISLOCALHOSTORIGIN WITH WHITESPACE
+        [Fact]
+        public void IsLocalhostOrigin_Whitespace_TrimsAndReturnsTrue()
+        {
+            // ACT & ASSERT - CHECK IF LOCALHOST ORIGIN IS TRUE
+            Assert.True(EnvironmentUtils.IsLocalhostOrigin("  http://localhost:3000  "));
+            Assert.True(EnvironmentUtils.IsLocalhostOrigin("  https://localhost  "));
         }
     }
 }

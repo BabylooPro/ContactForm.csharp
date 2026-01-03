@@ -2,6 +2,7 @@ using Amazon.Lambda.APIGatewayEvents;
 using Amazon.Lambda.AspNetCoreServer;
 using Amazon.Lambda.Core;
 using Asp.Versioning.ApiExplorer;
+using ContactForm.MinimalAPI.Utilities;
 
 namespace ContactForm.MinimalAPI
 {
@@ -23,12 +24,18 @@ namespace ContactForm.MinimalAPI
             })
             .Configure(app =>
             {
+                // LOAD CORS ORIGINS FROM ENVIRONMENT VARIABLES
+                var corsOrigins = EnvironmentUtils.LoadCorsOriginsFromEnvironment();
+                
                 app.UseCors(builder =>
-                    builder.WithOrigins(
-                        "http://localhost:3000",
-                        "https://maxremy.dev", // TODO: INSERT THIS TO VARIABLE ENVIRONNEMENT BY INDEXING, NO HARDCODED WEBSITE HERE
-                        "https://keypops.app"
-                    )
+                    builder.SetIsOriginAllowed(origin =>
+                    {
+                        // ALLOW ALL LOCALHOST ORIGINS (ANY PORT)
+                        if (EnvironmentUtils.IsLocalhostOrigin(origin)) return true;
+                        
+                        // CHECK IF ORIGIN IS IN ALLOWED LIST
+                        return corsOrigins.Contains(origin);
+                    })
                     .AllowAnyMethod()
                     .AllowAnyHeader()
                 );
@@ -102,33 +109,40 @@ namespace ContactForm.MinimalAPI
         // HELPER METHOD TO GET ORIGIN HEADER BASED ON REQUEST
         private static string GetOriginHeader(APIGatewayProxyRequest request)
         {
-            var allowedOrigins = new[]
-            {
-                "http://localhost:3000",
-                "https://maxremy.dev", // TODO: INSERT THIS TO VARIABLE ENVIRONNEMENT BY INDEXING, NO HARDCODED WEBSITE HERE
-                "https://keypops.app"
-            };
+            // LOAD CORS ORIGINS FROM ENVIRONMENT VARIABLES
+            var allowedOrigins = EnvironmentUtils.LoadCorsOriginsFromEnvironment();
 
             // CHECK IF ORIGIN HEADER IS PRESENT
-            if (request.Headers != null && request.Headers.TryGetValue("Origin", out var origin) && allowedOrigins.Contains(origin))
+            if (request.Headers != null && request.Headers.TryGetValue("Origin", out var origin))
             {
-                return origin;
+                // ALLOW ALL LOCALHOST ORIGINS
+                if (EnvironmentUtils.IsLocalhostOrigin(origin)) return origin;
+                
+                // CHECK IF ORIGIN IS IN ALLOWED LIST
+                if (allowedOrigins.Contains(origin)) return origin;
             }
 
             // FALLBACK TO REFERER IF NO ORIGIN
             if (request.Headers != null && request.Headers.TryGetValue("Referer", out var referer))
             {
+                // CHECK IF REFERER IS LOCALHOST
+                if (EnvironmentUtils.IsLocalhostOrigin(referer)) return referer;
+                
+                // CHECK IF REFERER STARTS WITH ANY ALLOWED ORIGIN
                 foreach (var allowedOrigin in allowedOrigins)
                 {
-                    if (referer.StartsWith(allowedOrigin))
-                    {
-                        return allowedOrigin;
-                    }
+                    if (referer.StartsWith(allowedOrigin)) return allowedOrigin;
                 }
             }
 
-            // DEFAULT TO FIRST ALLOWED ORIGIN IF NOT MATCHED
-            return allowedOrigins[0];
+            // DEFAULT TO FIRST ALLOWED ORIGIN IF AVAILABLE, OTHERWISE RETURN ORIGIN FROM REQUEST OR EMPTY
+            if (allowedOrigins.Count > 0) return allowedOrigins[0];
+            
+            // IF NO ORIGINS CONFIGURED, RETURN ORIGIN FROM REQUEST IF PRESENT
+            if (request.Headers != null && request.Headers.TryGetValue("Origin", out var fallbackOrigin))
+                return fallbackOrigin ?? "*";
+            
+            return "*";
         }
     }
 }

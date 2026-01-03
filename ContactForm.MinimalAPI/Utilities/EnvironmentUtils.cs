@@ -318,6 +318,60 @@ namespace ContactForm.MinimalAPI.Utilities
             });
         }
 
+        // LOAD CORS ORIGINS FROM CORS_{INDEX}_ORIGIN ENVIRONMENT VARIABLES AND INCLUDE ALL LOCALHOST URLS
+        public static List<string> LoadCorsOriginsFromEnvironment()
+        {
+            var origins = new List<string>();
+            var index = 1;
+
+            // LOAD ORIGINS FROM ENVIRONMENT VARIABLES USING INDEXED PATTERN
+            while (true)
+            {
+                var envVarName = $"CORS_{index}_ORIGIN";
+                var origin = Environment.GetEnvironmentVariable(envVarName);
+
+                if (string.IsNullOrWhiteSpace(origin))
+                {
+                    break; // NO MORE ORIGINS FOUND - STOP LOOPING
+                }
+
+                // ADD ORIGIN IF NOT EMPTY AND NOT ALREADY IN LIST
+                var trimmedOrigin = origin.Trim();
+                if (!string.IsNullOrEmpty(trimmedOrigin) && !origins.Contains(trimmedOrigin))
+                {
+                    origins.Add(trimmedOrigin);
+                }
+
+                index++;
+            }
+
+            // ADD LOCALHOST ORIGINS AUTOMATICALLY IF NOT PRESENT
+            var hasLocalhost = origins.Any(o => 
+                o.StartsWith("http://localhost", StringComparison.OrdinalIgnoreCase) ||
+                o.StartsWith("https://localhost", StringComparison.OrdinalIgnoreCase) ||
+                o.StartsWith("http://127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+                o.StartsWith("https://127.0.0.1", StringComparison.OrdinalIgnoreCase));
+
+            // IF NO LOCALHOST ORIGIN EXISTS, ADD A WILDCARD PATTERN FOR LOCALHOST
+            // INFO: CORS DOESN'T SUPPORT WILDCARDS IN ORIGINS, SO USE SETISORIGINALLOWED
+            // INFO: BUT FOR NOW, ADD COMMON LOCALHOST PATTERNS
+            // INFO: THE ACTUAL IMPLEMENTATION WILL USE SETISORIGINALLOWED IN CORS CONFIGURATION
+
+            return origins;
+        }
+
+        // CHECK IF AN ORIGIN IS A LOCALHOST ORIGIN (ANY PORT)
+        public static bool IsLocalhostOrigin(string origin)
+        {
+            if (string.IsNullOrWhiteSpace(origin)) return false;
+
+            var uri = origin.Trim();
+            return uri.StartsWith("http://localhost", StringComparison.OrdinalIgnoreCase) ||
+                   uri.StartsWith("https://localhost", StringComparison.OrdinalIgnoreCase) ||
+                   uri.StartsWith("http://127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+                   uri.StartsWith("https://127.0.0.1", StringComparison.OrdinalIgnoreCase);
+        }
+
         [GeneratedRegex(@"[ \t]+")]
         private static partial Regex WhitespaceRegex();
     }

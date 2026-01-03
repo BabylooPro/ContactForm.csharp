@@ -14,51 +14,51 @@ A flexible and customizable contact form backend API built with .NET 8 Minimal A
 
 ## Features
 
--   Multiple SMTP configurations with failover support
--   Customizable email templates (Default, Modern, Minimal, Professional, Alert)
--   HTML email support with rich formatting
--   Attachment handling with base64 encoding
--   Email priority levels (Low, Normal, High, Urgent)
--   AWS Lambda deployment support
--   Environment variable configuration for secure credential management
--   Advanced email tracking with rate limiting and progressive timeout
--   Error handling middleware
--   CORS configuration for cross-domain integration
--   Optional username field for anonymous submissions
+- Multiple SMTP configurations with failover support
+- Customizable email templates (Default, Modern, Minimal, Professional, Alert)
+- HTML email support with rich formatting
+- Attachment handling with base64 encoding
+- Email priority levels (Low, Normal, High, Urgent)
+- AWS Lambda deployment support
+- Environment variable configuration for secure credential management
+- Advanced email tracking with rate limiting and progressive timeout
+- Error handling middleware
+- CORS configuration for cross-domain integration
+- Optional username field for anonymous submissions
 
 ## Architecture
 
--   **Services Layer**: Core services for email sending, SMTP testing, and template management
--   **Interfaces**: Clean separation of concerns using dependency injection
--   **Models**: Data models for email requests and SMTP configuration
--   **Middleware**: Error handling and request processing
--   **Controllers**: RESTful API endpoints
--   **AWS Lambda Integration**: Support for serverless deployment
+- **Services Layer**: Core services for email sending, SMTP testing, and template management
+- **Interfaces**: Clean separation of concerns using dependency injection
+- **Models**: Data models for email requests and SMTP configuration
+- **Middleware**: Error handling and request processing
+- **Controllers**: RESTful API endpoints
+- **AWS Lambda Integration**: Support for serverless deployment
 
 ## Testing
 
 The project includes a comprehensive test suite in the `ContactForm.Tests` project, covering all aspects of the application:
 
--   **Unit Tests**:
+- **Unit Tests**:
 
-    -   `ModelsTests`: Validates data models and their validation rules
-    -   `ServicesTests`: Tests individual services in isolation with mocked dependencies
-        -   `EmailServiceTests`: Email generation and sending functionality
-        -   `EmailTrackingServiceTests`: Rate limiting and usage tracking
-        -   `IpProtectionServiceTests`: IP blocking, expiration, and abuse detection
-        -   `RateLimitingMiddlewareTests`: Request throttling, IP blocking, and rate limit checks
-    -   `ControllersTests`: Ensures API endpoints function correctly with mocked services
+  - `ModelsTests`: Validates data models and their validation rules
+  - `ServicesTests`: Tests individual services in isolation with mocked dependencies
+    - `EmailServiceTests`: Email generation and sending functionality
+    - `EmailTrackingServiceTests`: Rate limiting and usage tracking
+    - `IpProtectionServiceTests`: IP blocking, expiration, and abuse detection
+    - `RateLimitingMiddlewareTests`: Request throttling, IP blocking, and rate limit checks
+  - `ControllersTests`: Ensures API endpoints function correctly with mocked services
 
--   **Integration Tests**:
+- **Integration Tests**:
 
-    -   `IntegrationTests`: End-to-end tests using `ApplicationFactory` to simulate real API interactions
-    -   `SecurityHeadersTests`: Validates security headers and CORS configurations across requests
-    -   `RateLimitingIntegrationTests`: Tests rate limiting functionality with real HTTP requests
-    -   `IpSpoofingTests`: Detects and blocks suspicious IP spoofing attempts
+  - `IntegrationTests`: End-to-end tests using `ApplicationFactory` to simulate real API interactions
+  - `SecurityHeadersTests`: Validates security headers and CORS configurations across requests
+  - `RateLimitingIntegrationTests`: Tests rate limiting functionality with real HTTP requests
+  - `IpSpoofingTests`: Detects and blocks suspicious IP spoofing attempts
 
--   **Performance and Concurrency Tests**:
-    -   `RateLimitingPerformanceTests`: Measures overhead of rate limiting middleware
-    -   `IpProtectionServiceConcurrencyTests`: Validates thread safety under concurrent traffic
+- **Performance and Concurrency Tests**:
+  - `RateLimitingPerformanceTests`: Measures overhead of rate limiting middleware
+  - `IpProtectionServiceConcurrencyTests`: Validates thread safety under concurrent traffic
 
 The test project uses xUnit and ASPNET Core testing framework for thorough testing coverage.
 
@@ -70,11 +70,11 @@ dotnet test
 
 ## API Endpoints
 
--   `POST /api/v1/email/{smtpId}` - Send an email using specified SMTP configuration
--   `POST /api/v1/email/{smtpId}/test` - Send a test email using test email address
--   `GET /api/v1/email/configs` - Get all available SMTP configurations
--   `GET /api/v{version}/versiontest` - Test v1 and v2 versioning
--   `GET /test` - Test if the API is running
+- `POST /api/v1/email/{smtpId}` - Send an email using specified SMTP configuration
+- `POST /api/v1/email/{smtpId}/test` - Send a test email using test email address
+- `GET /api/v1/email/configs` - Get all available SMTP configurations
+- `GET /api/v{version}/versiontest` - Test v1 and v2 versioning
+- `GET /test` - Test if the API is running
 
 ## Api Versioning
 
@@ -88,20 +88,30 @@ The API implements a dual-layer rate limiting system (email submission + API req
 
 The API documentation is available in two formats:
 
--   **Detailed Documentation**: See the [DOCS.md](DOCS.md) file for comprehensive API documentation including request/response formats, templates, and configuration details.
--   **Interactive Swagger UI**: When running the API locally, access the Swagger documentation at the root URL `http://localhost:5108/` on navigator. Swagger provides an interactive interface to explore and test all API endpoints.
+- **Detailed Documentation**: See the [DOCS.md](DOCS.md) file for comprehensive API documentation including request/response formats, templates, and configuration details.
+- **Interactive Swagger UI**: When running the API locally, access the Swagger documentation at the root URL `http://localhost:5108/` on navigator. Swagger provides an interactive interface to explore and test all API endpoints.
 
 ## Prerequisites
 
 Required for this project:
 
--   .NET SDK 8.0+
--   SMTP server access for sending emails
--   Environment variables for SMTP configurations
+- .NET SDK 8.0+
+- SMTP server access for sending emails
+- Environment variables for SMTP configurations
 
 ## Configuration
 
-SMTP configurations are loaded from environment variables. See [DOCS.md](DOCS.md) for detailed configuration instructions and examples.
+SMTP configurations and CORS origins are loaded from environment variables. See [DOCS.md](DOCS.md) for detailed configuration instructions and examples.
+
+### CORS Configuration
+
+CORS origins are configured using indexed environment variables:
+
+- `CORS_1_ORIGIN` - First allowed origin (example:, `https://example.com`)
+- `CORS_2_ORIGIN` - Second allowed origin (example:, `https://another-domain.com`)
+- `CORS_{INDEX}_ORIGIN` - Additional origins as needed
+
+**Note:** All localhost URLs (http://localhost:_ and https://localhost:_) are automatically allowed for development purposes, regardless of port number.
 
 ## Installation
 
@@ -117,6 +127,7 @@ cd ContactForm.csharp/ContactForm.MinimalAPI
 # - SMTP_CONFIGURATIONS (JSON array)
 # - SMTP_1_PASSWORD, SMTP_1_PASSWORD_TEST
 # - SMTP_RECEPTION_EMAIL, SMTP_CATCHALL_EMAIL
+# - CORS_1_ORIGIN, CORS_2_ORIGIN (allowed CORS origins)
 
 # RESTORE DEPENDENCIES
 dotnet restore
@@ -144,13 +155,13 @@ Deployment is fully automated using the GitHub Actions workflow defined in [.git
 
 **This workflow includes:**
 
--   Builds and packages the application
--   Creates necessary IAM roles and permissions for Lambda execution
--   Deploys to AWS Lambda with proper environment variables
--   Configures API Gateway with REST endpoints and proxy resources
--   Sets up usage plans, throttling limits, and API keys
--   Configures CORS for cross-domain access
--   Preserves API Gateway ID across deployments for endpoint stability
+- Builds and packages the application
+- Creates necessary IAM roles and permissions for Lambda execution
+- Deploys to AWS Lambda with proper environment variables
+- Configures API Gateway with REST endpoints and proxy resources
+- Sets up usage plans, throttling limits, and API keys
+- Configures CORS for cross-domain access
+- Preserves API Gateway ID across deployments for endpoint stability
 
 **Workflow Structure:**
 
@@ -172,12 +183,12 @@ _For detailed documentation of this deployment workflow, see this [README](https
 
 **Required GitHub secrets:**
 
--   `AWS_ACCESS_KEY_ID` - AWS access key with deployment permissions
--   `AWS_SECRET_ACCESS_KEY` - AWS secret key
--   `SMTP_1_PASSWORD` - SMTP password for configuration 1 for regular email
--   `SMTP_1_PASSWORD_TEST` - SMTP password for configuration 1 for test email
--   `SMTP_2_PASSWORD` - SMTP password for configuration 2 for regular email
--   `SMTP_2_PASSWORD_TEST` - SMTP password for configuration 2 for test email
+- `AWS_ACCESS_KEY_ID` - AWS access key with deployment permissions
+- `AWS_SECRET_ACCESS_KEY` - AWS secret key
+- `SMTP_1_PASSWORD` - SMTP password for configuration 1 for regular email
+- `SMTP_1_PASSWORD_TEST` - SMTP password for configuration 1 for test email
+- `SMTP_2_PASSWORD` - SMTP password for configuration 2 for regular email
+- `SMTP_2_PASSWORD_TEST` - SMTP password for configuration 2 for test email
 
 ### Manual Deployment (UNTESTED)
 
