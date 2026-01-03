@@ -1,4 +1,4 @@
-# BACKEND CONTACT FORM API WITH DOTNET 8.0 -> AWS LAMBDA
+# BACKEND CONTACT FORM API WITH DOTNET 8.0 USING AWS LAMBDA
 
 [VERSION_BADGE]: https://img.shields.io/badge/dotnet-8.0.+-purple.svg
 [LICENSE_BADGE]: https://img.shields.io/badge/license-MIT-blue.svg
