@@ -38,7 +38,7 @@ A flexible and customizable contact form backend API built with .NET 8 Minimal A
 
 ## Testing
 
-The project includes a comprehensive test suite in the `ContactForm.Tests` project, covering all aspects of the application:
+The project includes a comprehensive test suite in the `Tests` project, covering all aspects of the application:
 
 - **Unit Tests**:
 
@@ -63,7 +63,7 @@ The project includes a comprehensive test suite in the `ContactForm.Tests` proje
 
 The test project uses xUnit and ASPNET Core testing framework for thorough testing coverage.
 
-To execute all tests in the `ContactForm.MinimalAPI` directory, run the following command:
+To execute all tests in the `API` directory, run the following command:
 
 ```bash
 dotnet test
@@ -121,7 +121,7 @@ CORS origins are configured using indexed environment variables:
 git clone https://github.com/BabylooPro/ContactForm.csharp.git
 
 # NAVIGATE TO PROJECT DIRECTORY
-cd ContactForm.csharp/ContactForm.MinimalAPI
+cd ContactForm.csharp/API
 
 # CREATE .ENV FILE (see DOCS.md for detailed configuration examples)
 # Minimum required variables:
@@ -226,6 +226,7 @@ Content-Type: application/json
 ```
 
 Each email is assigned a unique 8-character ID that:
+
 - Appears in the email subject: `Subject - [A3F2B1C9]`
 - Is included in the API response for tracking
 - Is logged in all console and application logs

@@ -1,0 +1,12 @@
+using API.Models;
+
+namespace API.Interfaces
+{
+    // INTERFACE FOR SENDING EMAILS
+    public interface IEmailService
+    {
+        Task<bool> SendEmailAsync(EmailRequest request, int smtpId, bool useTestEmail = false);
+        SmtpConfig GetSmtpConfigById(int id);
+        List<SmtpConfig> GetAllSmtpConfigs();
+    }
+}
