@@ -13,6 +13,7 @@ namespace Tests.IntegrationTests
         {
             // SETUP TEST SERVER
             var hostBuilder = Host.CreateDefaultBuilder()
+                .ConfigureAppConfiguration((context, config) => { config.Sources.Clear(); })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder

@@ -33,6 +33,7 @@ namespace Tests.IntegrationTests
             {
                 // ARRANGE - HOST/CLIENT
                 var hostBuilder = Host.CreateDefaultBuilder()
+                    .ConfigureAppConfiguration((context, config) => { config.Sources.Clear(); })
                     .ConfigureWebHostDefaults(webBuilder =>
                     {
                         webBuilder

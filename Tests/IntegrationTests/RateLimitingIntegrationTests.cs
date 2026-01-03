@@ -18,6 +18,7 @@ namespace Tests.IntegrationTests
             
             // SETUP TEST SERVER WITH CUSTOM SERVICE
             var hostBuilder = Host.CreateDefaultBuilder()
+                .ConfigureAppConfiguration((context, config) => { config.Sources.Clear(); })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder
