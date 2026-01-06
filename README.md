@@ -36,39 +36,6 @@ A flexible and customizable contact form backend API built with .NET 8 API. This
 - **Controllers**: RESTful API endpoints
 - **AWS Lambda Integration**: Support for serverless deployment
 
-## Testing
-
-The project includes a comprehensive test suite in the `Tests` project, covering all aspects of the application:
-
-- **Unit Tests**:
-
-  - `ModelsTests`: Validates data models and their validation rules
-  - `ServicesTests`: Tests individual services in isolation with mocked dependencies
-    - `EmailServiceTests`: Email generation and sending functionality
-    - `EmailTrackingServiceTests`: Rate limiting and usage tracking
-    - `IpProtectionServiceTests`: IP blocking, expiration, and abuse detection
-    - `RateLimitingMiddlewareTests`: Request throttling, IP blocking, and rate limit checks
-  - `ControllersTests`: Ensures API endpoints function correctly with mocked services
-
-- **Integration Tests**:
-
-  - `IntegrationTests`: End-to-end tests using `ApplicationFactory` to simulate real API interactions
-  - `SecurityHeadersTests`: Validates security headers and CORS configurations across requests
-  - `RateLimitingIntegrationTests`: Tests rate limiting functionality with real HTTP requests
-  - `IpSpoofingTests`: Detects and blocks suspicious IP spoofing attempts
-
-- **Performance and Concurrency Tests**:
-  - `RateLimitingPerformanceTests`: Measures overhead of rate limiting middleware
-  - `IpProtectionServiceConcurrencyTests`: Validates thread safety under concurrent traffic
-
-The test project uses xUnit and ASPNET Core testing framework for thorough testing coverage.
-
-To execute all tests in the `API` directory, run the following command:
-
-```bash
-dotnet test
-```
-
 ## API Endpoints
 
 - `POST /api/v1/email/{smtpId}` - Send an email using specified SMTP configuration
@@ -144,6 +111,22 @@ dotnet test
 
 # RUN PROJECT
 dotnet run
+```
+
+## Testing
+
+The project includes a comprehensive test suite in the `Tests` project, covering all aspects of the application:
+
+- **Unit Tests**:
+- **Integration Tests**:
+- **Performance and Concurrency Tests**:
+
+The test project uses xUnit and ASPNET Core testing framework for thorough testing coverage.
+
+To execute all tests in the `API` directory, run the following command:
+
+```bash
+dotnet test
 ```
 
 ## AWS Lambda Deployment
