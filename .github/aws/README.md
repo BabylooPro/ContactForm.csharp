@@ -2,7 +2,7 @@
 
 This folder contains AWS deployment helper files (used by GitHub Actions).
 
--   Deployment docs: [docs/deployment/aws-lambda.md](../../docs/deployment/aws-lambda.md)
+-   Deployment docs: [Docs/deployment/aws-lambda.md](../../Docs/deployment/aws-lambda.md)
 -   Workflow: [aws-deploy.yml](../workflows/aws-deploy.yml)
 -   IAM policy: [iam-user-policy.json](./iam-user-policy.json)
 
