@@ -2,7 +2,7 @@
 
 ## CORS
 
-CORS is configured via env vars (see [Configuration](configuration.md)):
+CORS is configured via env vars (see [Configuration](../configuration.md)):
 
 -   `CORS_{INDEX}_ORIGIN`
 

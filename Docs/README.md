@@ -15,4 +15,4 @@ This documentation is split into multiple focused files.
 -   [Rate limiting & anti-abuse](feature/rate-limiting.md)
 -   [Email templates](feature/templates.md)
 -   [Error handling](feature/error-handling.md)
--   [Security](security.md)
+-   [Security](feature/security.md)
