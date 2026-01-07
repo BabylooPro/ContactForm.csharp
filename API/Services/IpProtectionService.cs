@@ -33,7 +33,7 @@ namespace API.Services
 
         public void Dispose()
         {
-            _cleanupTimer?.Dispose();
+            _cleanupTimer.Dispose();
             GC.SuppressFinalize(this);
         }
 
@@ -83,9 +83,9 @@ namespace API.Services
             var now = DateTime.UtcNow;
             
             // CLEANUP EXPIRED IP BLOCKS
-            foreach (var ip in _blockedIps.Keys)
+            foreach (var (ip, expiration) in _blockedIps.ToArray())
             {
-                if (_blockedIps.TryGetValue(ip, out var expiration) && now > expiration)
+                if (now > expiration)
                 {
                     _blockedIps.TryRemove(ip, out _);
                     _logger.LogInformation("IP block for {IpAddress} expired and removed", ip);

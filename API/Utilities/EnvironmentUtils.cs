@@ -183,9 +183,9 @@ namespace API.Utilities
             // TRY TO PARSE JSON VALUE AS LIST OF SMTP CONFIGURATIONS
             try
             {
-                var configurations = JsonSerializer.Deserialize<List<SmtpConfig>>(jsonValue, JsonSerializerOptions);
+                var configurations = JsonSerializer.Deserialize<List<SmtpConfig>>(jsonValue, JsonSerializerOptions)!;
 
-                if (configurations == null || configurations.Count == 0)
+                if (configurations.Count == 0)
                 {
                     throw new InvalidOperationException(
                         $"Invalid configuration: {envVarName}{Environment.NewLine}{Environment.NewLine}" +
@@ -337,10 +337,7 @@ namespace API.Utilities
 
                 // ADD ORIGIN IF NOT EMPTY AND NOT ALREADY IN LIST
                 var trimmedOrigin = origin.Trim();
-                if (!string.IsNullOrEmpty(trimmedOrigin) && !origins.Contains(trimmedOrigin))
-                {
-                    origins.Add(trimmedOrigin);
-                }
+                if (!origins.Contains(trimmedOrigin)) origins.Add(trimmedOrigin);
 
                 index++;
             }

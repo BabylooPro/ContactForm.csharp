@@ -14,6 +14,8 @@ namespace API
 {
     public class Program
     {
+        internal static Action<int> Exit = Environment.Exit; // ALLOW OVERRIDING PROCESS EXIT FOR TESTING
+
         public static void Main(string[] args)
         {
             try
@@ -29,17 +31,16 @@ namespace API
                 // RUNNING WEB APPLICATION
                 app.Run();
             }
-            catch (InvalidOperationException ex)
-                when (ex.Message.Contains("SMTP connection test failed"))
+            catch (InvalidOperationException ex) when (ex.Message.Contains("SMTP connection test failed"))
             {
                 // HANDLE SMTP CONNECTIONS FAILURE
                 Console.Error.WriteLine(ex.Message);
-                Environment.Exit(1);
+                Exit(1);
             }
             catch (InvalidOperationException ex)
             {
                 Console.Error.WriteLine(ex.Message);
-                Environment.Exit(1);
+                Exit(1);
             }
         }
 
