@@ -110,6 +110,7 @@ namespace API
             services.AddScoped<ISmtpClientWrapper, SmtpClientWrapper>();
             services.AddScoped<IEmailTrackingService, EmailTrackingService>();
             services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+            services.AddSingleton<IEmailStore, InMemoryEmailStore>();
 
             // REGISTER IP PROTECTION SERVICES
             services.AddSingleton<IIpProtectionService, IpProtectionService>();

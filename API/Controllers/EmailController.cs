@@ -6,100 +6,98 @@ using Microsoft.Extensions.Options;
 
 namespace API.Controllers
 {
-    // CONTROLLER FOR SENDING EMAILS (POST)
+    // RESOURCE CONTROLLER FOR EMAILS
     [ApiController]
     [ApiVersion("1.0")]
-    [Route("api/v{version:apiVersion}/[controller]")] // ROUTE: api/v1/email
-    [Route("api/[controller]")]
-    public class EmailController(IEmailService emailService, IOptions<SmtpSettings> smtpSettings) : ControllerBase
+    [Route("api/v{version:apiVersion}/emails")]
+    [Route("api/emails")]
+    public class EmailsController(IEmailService emailService, IEmailStore emailStore, IOptions<SmtpSettings> smtpSettings) : ControllerBase
     {
         // DEPENDENCY INJECTION
         private readonly IEmailService _emailService = emailService;
+        private readonly IEmailStore _emailStore = emailStore;
         private readonly SmtpSettings _smtpSettings = smtpSettings.Value;
 
-        // POST METHOD FOR SENDING EMAIL (api/email/{smtpId}) [example: (api/email/1) send regular email]
-        [HttpPost("{smtpId}")]
-        public async Task<IActionResult> SendEmail([FromBody] EmailRequest request, int smtpId)
+        // CREATE A NEW EMAIL RESOURCE (SERVER SENDS EMAIL SYNCHRONOUSLY)
+        // - POST /api/v1/emails?smtpId=1
+        // - POST /api/v1/emails?smtpId=1&test=true
+        [HttpPost]
+        public async Task<IActionResult> CreateEmail([FromBody] EmailRequest request, [FromQuery] int? smtpId = null, [FromQuery] bool test = false)
         {
+            // RESOLVE SMTP ID (DEFAULT: LOWEST CONFIGURED INDEX)
+            var resolvedSmtpId = smtpId ?? ResolveDefaultSmtpId();
+
             try
             {
                 // SENDING EMAIL
-                var success = await _emailService.SendEmailAsync(request, smtpId);
+                var success = await _emailService.SendEmailAsync(request, resolvedSmtpId, test);
+
+                // ENSURE EMAIL ID EXISTS (EMAILSERVICE SHOULD SET IT)
+                var emailId = string.IsNullOrWhiteSpace(request.EmailId) ? Guid.NewGuid().ToString("N")[..8].ToUpperInvariant() : request.EmailId!;
+
+                // STORE RESOURCE STATE FOR GET /emails/{id}
+                var resource = new EmailResource
+                {
+                    Id = emailId,
+                    Status = success ? EmailStatus.Sent : EmailStatus.Failed,
+                    RequestedSmtpId = resolvedSmtpId,
+                    IsTest = test,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ReceptionEmail = _smtpSettings.ReceptionEmail
+                };
+
+                _emailStore.Upsert(resource);
 
                 if (!success)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("\nERROR: Failed to send email after trying all available SMTP configurations\n");
-                    Console.ResetColor();
-                    return StatusCode(500, "Failed to send email after trying all available SMTP configurations");
+                    // DELIVERY FAILURE IS A GATEWAY-LIKE ERROR (UPSTREAM SMTP)
+                    return Problem(
+                        title: "Email delivery failed",
+                        detail: "Failed to send email after trying all available SMTP configurations.",
+                        statusCode: StatusCodes.Status502BadGateway
+                    );
                 }
 
-                // RETURN EMAIL SENT SUCCESS MESSAGE WITH SMTP INDEX AND EMAIL ID
-                var smtpConfig = _smtpSettings.Configurations.FirstOrDefault(c => c.Index == smtpId );
-                return Ok(new
-                {
-                    message = $"Email sent successfully using SMTP_{smtpId} ({smtpConfig?.Email} -> {_smtpSettings.ReceptionEmail})",
-                    emailId = request.EmailId
-                });
+                var location = BuildEmailLocation(emailId);
+                return Created(location, resource);
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"\nERROR: Unexpected error while sending email: {ex.Message}\n");
-                Console.ResetColor();
-                return StatusCode(500, "An unexpected error occurred while sending the email");
+                return Problem(title: "Bad request", detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
             }
         }
 
-        // POST METHOD FOR SENDING TEST EMAIL (api/email/{smtpId}/test) [example: (api/email/1/test) send test email]
-        [HttpPost("{smtpId}/test")]
-        public async Task<IActionResult> SendTestEmail([FromBody] EmailRequest request, int smtpId)
+        // RETRIEVE AN EMAIL RESOURCE BY ID
+        [HttpGet("{id}")]
+        public IActionResult GetById(string id)
         {
-            try
-            {
-                // SENDING EMAIL USING TEST EMAIL
-                var success = await _emailService.SendEmailAsync(request, smtpId, true);
-
-                if (!success)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("\nERROR: Failed to send test email after trying all available SMTP configurations\n");
-                    Console.ResetColor();
-                    return StatusCode(500, "Failed to send test email after trying all available SMTP configurations");
-                }
-
-                // RETURN TEST EMAIL SENT SUCCESS MESSAGE WITH SMTP INDEX AND EMAIL ID
-                var smtpConfig = _smtpSettings.Configurations.FirstOrDefault(c =>
-                    c.Index == smtpId
-                );
-                return Ok(new
-                {
-                    message = $"Test Email sent successfully using SMTP_{smtpId} ({smtpConfig?.Email} -> {_smtpSettings.ReceptionEmail})",
-                    emailId = request.EmailId
-                });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"\nERROR: Unexpected error while sending test email: {ex.Message}\n");
-                Console.ResetColor();
-                return StatusCode(500, "An unexpected error occurred while sending the test email");
-            }
+            if (_emailStore.TryGet(id, out var resource)) return Ok(resource); 
+            return NotFound(new { message = $"Email '{id}' was not found." });
         }
 
-        // GET METHOD FOR GETTING ALL SMTP CONFIGURATIONS
-        [HttpGet("configs")]
-        public IActionResult GetSmtpConfigs()
+        // HELPER METHOD TO RESOLVE DEFAULT SMTP ID
+        private int ResolveDefaultSmtpId()
         {
-            return Ok(_emailService.GetAllSmtpConfigs());
+            var configs = _emailService.GetAllSmtpConfigs();
+            if (configs.Count == 0) throw new InvalidOperationException("No SMTP configurations are available.");
+
+            return configs.Min(c => c.Index);
+        }
+
+        // HELPER METHOD TO BUILD EMAIL LOCATION
+        private string BuildEmailLocation(string emailId)
+        {
+            // KEEP LOCATION CONSISTENT WITH THE CALLER'S VERSIONING METHOD
+            var path = HttpContext?.Request.Path.Value;
+
+            if (string.IsNullOrWhiteSpace(path)) path = "/api/v1/emails";
+
+            // URL SEGMENT VERSIONING (EX: /api/v1/emails)
+            if (path.StartsWith("/api/v", StringComparison.OrdinalIgnoreCase)) return $"{path.TrimEnd('/')}/{emailId}";
+
+            // QUERY/HEADER VERSIONING (EX: /api/emails?api-version=1.0 OR X-Version: 1.0)
+            var version = HttpContext!.GetRequestedApiVersion()?.ToString() ?? "1.0";
+            return $"/api/emails/{emailId}?api-version={version}";
         }
     }
 }

@@ -10,7 +10,7 @@
 
 ![Version][VERSION_BADGE] [![License][LICENSE_BADGE]][LICENSE_URL] [![TODO][TODO_BADGE]][TODO_URL] [![DOCS][DOCS_BADGE]][DOCS_URL]
 
-Backend REST API for contact form submissions: multi-SMTP failover, templates, attachments, API versioning, rate limiting. Runs locally or on AWS Lambda.
+Backend RESTful API for contact form submissions: multi-SMTP failover, templates, attachments, API versioning, rate limiting. Runs locally or on AWS Lambda.
 
 ## Documentation
 
@@ -59,15 +59,16 @@ See [docs/configuration.md](docs/configuration.md).
 
 Primary endpoints (v1):
 
--   `POST /api/v1/email/{smtpId}`
--   `POST /api/v1/email/{smtpId}/test`
--   `GET /api/v1/email/configs`
+-   `POST /api/v1/emails?smtpId={smtpId}`
+-   `POST /api/v1/emails?smtpId={smtpId}&test=true`
+-   `GET /api/v1/emails/{emailId}`
+-   `GET /api/v1/smtp-configurations`
 -   `GET /api/v1/versiontest`
 
 Minimal local call example:
 
 ```bash
-curl -X POST "http://localhost:5108/api/v1/email/1" \
+curl -X POST "http://localhost:5108/api/v1/emails?smtpId=1" \
   -H "Content-Type: application/json" \
   -d '{"Email":"sender@example.com","Username":"John Doe","Message":"Hello"}'
 ```

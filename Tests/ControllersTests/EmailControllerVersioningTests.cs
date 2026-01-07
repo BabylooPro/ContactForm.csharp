@@ -8,7 +8,7 @@ namespace Tests.ControllersTests
     {
         private readonly TestWebApplicationFactory _factory = factory;
 
-        // TEST FOR GET CONFIGS ENDPOINT WITHOUT VERSION
+        // TEST FOR GET SMTP CONFIGURATIONS ENDPOINT WITHOUT VERSION
         [Fact]
         public async Task GetConfigs_WithoutVersion_ReturnsBadRequest()
         {
@@ -16,7 +16,7 @@ namespace Tests.ControllersTests
             var client = _factory.CreateClient();
 
             // ACT - GET REQUEST
-            var response = await client.GetAsync("/api/email/configs");
+            var response = await client.GetAsync("/api/smtp-configurations");
 
             // ASSERT - CHECK STATUS CODE
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -35,7 +35,7 @@ namespace Tests.ControllersTests
             Assert.Contains("required", title, StringComparison.OrdinalIgnoreCase);
         }
 
-        // TEST FOR GET CONFIGS ENDPOINT WITH PATH VERSION RETURN SUCCESS
+        // TEST FOR GET SMTP CONFIGURATIONS ENDPOINT WITH PATH VERSION RETURN SUCCESS
         [Fact]
         public async Task GetConfigs_WithPathVersion_ReturnsSuccess()
         {
@@ -43,13 +43,13 @@ namespace Tests.ControllersTests
             var client = _factory.CreateClient();
 
             // ACT - SEND REQUEST
-            var response = await client.GetAsync("/api/v1/email/configs");
+            var response = await client.GetAsync("/api/v1/smtp-configurations");
 
             // ASSERT - CHECK STATUS
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
 
-        // TEST FOR GET CONFIGS ENDPOINT WITH QUERY STRING VERSION RETURN SUCCESS
+        // TEST FOR GET SMTP CONFIGURATIONS ENDPOINT WITH QUERY STRING VERSION RETURN SUCCESS
         [Fact]
         public async Task GetConfigs_WithQueryStringVersion_ReturnsSuccess()
         {
@@ -57,13 +57,13 @@ namespace Tests.ControllersTests
             var client = _factory.CreateClient();
 
             // ACT - GET CONFIGS
-            var response = await client.GetAsync("/api/email/configs?api-version=1.0");
+            var response = await client.GetAsync("/api/smtp-configurations?api-version=1.0");
 
             // ASSERT - STATUS OK
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
 
-        // TEST FOR GET CONFIGS ENDPOINT WITH HEADER VERSION RETURN SUCCESS
+        // TEST FOR GET SMTP CONFIGURATIONS ENDPOINT WITH HEADER VERSION RETURN SUCCESS
         [Fact]
         public async Task GetConfigs_WithHeaderVersion_ReturnsSuccess()
         {
@@ -71,7 +71,7 @@ namespace Tests.ControllersTests
             var client = _factory.CreateClient();
 
             // ACT - PREPARE REQUEST
-            var request = new HttpRequestMessage(HttpMethod.Get, "api/email/configs");
+            var request = new HttpRequestMessage(HttpMethod.Get, "api/smtp-configurations");
             request.Headers.Add("X-Version", "1.0");
 
             // ASSERT - CHECK STATUS
@@ -87,7 +87,7 @@ namespace Tests.ControllersTests
             var client = _factory.CreateClient();
 
             // ACT - PREPARE REQUEST
-            var request = new HttpRequestMessage(HttpMethod.Get, "api/email/configs?api-version=1.0");
+            var request = new HttpRequestMessage(HttpMethod.Get, "api/smtp-configurations?api-version=1.0");
             request.Headers.Add("X-Version", "2.0");
 
             // ASSERT - STATUS OK
@@ -95,7 +95,7 @@ namespace Tests.ControllersTests
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
 
-        // TEST FOR GET CONFIGS ENDPOINT WITH INVALID PATH VERSION RETURNS NOT FOUND
+        // TEST FOR GET SMTP CONFIGURATIONS ENDPOINT WITH INVALID PATH VERSION RETURNS NOT FOUND
         [Fact]
         public async Task GetConfigs_WithInvalidPathVersion_ReturnsNotFound()
         {
@@ -103,13 +103,13 @@ namespace Tests.ControllersTests
             var client = _factory.CreateClient();
 
             // ACT - GET REQUEST
-            var response = await client.GetAsync("/api/v2.0/email/configs");
+            var response = await client.GetAsync("/api/v2.0/smtp-configurations");
 
             // ASSERT - STATUS NOTFOUND
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
 
-        // TEST FOR GET CONFIGS ENDPOINT WITH INVALID QUERY STRING VERSION RETURNS NOT FOUND
+        // TEST FOR GET SMTP CONFIGURATIONS ENDPOINT WITH INVALID QUERY STRING VERSION RETURNS NOT FOUND
         [Fact]
         public async Task GetConfigs_WithInvalidQueryStringVersion_ReturnsNotFound()
         {
@@ -117,13 +117,13 @@ namespace Tests.ControllersTests
             var client = _factory.CreateClient();
 
             // ACT - GET RESPONSE
-            var response = await client.GetAsync("/api/email/configs?api-version=2.0");
+            var response = await client.GetAsync("/api/smtp-configurations?api-version=2.0");
 
             // ASSERT - STATUS NOTFOUND
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
 
-        // TEST FOR GET CONFIGS ENDPOINT WITH INVALID HEADER VERSION RETURNS NOT FOUND
+        // TEST FOR GET SMTP CONFIGURATIONS ENDPOINT WITH INVALID HEADER VERSION RETURNS NOT FOUND
         [Fact]
         public async Task GetConfigs_WithInvalidHeaderVersion_ReturnsNotFound()
         {
@@ -131,7 +131,7 @@ namespace Tests.ControllersTests
             var client = _factory.CreateClient();
 
             // ACT - PREPARE REQUEST
-            var request = new HttpRequestMessage(HttpMethod.Get, "api/email/configs");
+            var request = new HttpRequestMessage(HttpMethod.Get, "api/smtp-configurations");
             request.Headers.Add("X-Version", "2.0");
 
             // ASSERT - CHECK STATUS

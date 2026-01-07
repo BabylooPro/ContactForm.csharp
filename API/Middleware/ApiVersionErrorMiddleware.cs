@@ -17,7 +17,7 @@ namespace API.Middleware
             {
                 var requestedVersion = ExtractRequestedVersion(context);
                 
-                if (requestedVersion != null && requestedVersion != "1.0")
+                if (requestedVersion != null && !IsSupportedApiVersion(requestedVersion))
                 {
                     var errorResponse = new
                     {
@@ -39,6 +39,21 @@ namespace API.Middleware
             }
         }
 
+        // HELPER METHOD TO CHECK IF REQUESTED VERSION IS SUPPORTED
+        private static bool IsSupportedApiVersion(string requestedVersion)
+        {
+            const string supported = "1.0";
+            var normalized = NormalizeApiVersion(requestedVersion);
+            return string.Equals(normalized, supported, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // HELPER METHOD TO NORMALIZE REQUESTED VERSION (MAJOR ONLY -> MAJOR.0)
+        private static string NormalizeApiVersion(string version)
+        {
+            if (int.TryParse(version, out var major)) return $"{major}.0";
+            return version;
+        }
+
         // HELPER METHOD TO EXTRACT REQUESTED VERSION FROM REQUEST
         private static string? ExtractRequestedVersion(HttpContext context)
         {
@@ -46,21 +61,14 @@ namespace API.Middleware
             if (path != null)
             {
                 var pathMatch = PathVersionRegex().Match(path);
-                if (pathMatch.Success)
-                {
-                    return pathMatch.Groups[1].Value;
-                }
+                if (pathMatch.Success) return pathMatch.Groups[1].Value;
             }
 
             if (context.Request.Query.TryGetValue("api-version", out var queryVersion))
-            {
                 return queryVersion.ToString();
-            }
 
             if (context.Request.Headers.TryGetValue("X-Version", out var headerVersion))
-            {
                 return headerVersion.ToString();
-            }
 
             return null;
         }

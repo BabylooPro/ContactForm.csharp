@@ -4,43 +4,59 @@ Base path: `/api`
 
 Versioning is required - see [API versioning](versioning.md).
 
+## API type
+
+This project exposes a **RESTful HTTP API** (resource-oriented).
+
+Notes:
+
+-   It is **RESTful** in practice (resources + HTTP verbs/status codes).
+-   It is **not “strict REST”** (no HATEOAS links, no ETag/conditional requests, and the `Email` resource is currently stored in-memory).
+
 ## Endpoints
 
-### Send email
+### Create email (send)
 
 Preferred (URL versioning):
 
 ```http
-POST /api/v1/email/{smtpId}
+POST /api/v1/emails?smtpId={smtpId}
+Content-Type: application/json
+```
+
+Optional test mode:
+
+```http
+POST /api/v1/emails?smtpId={smtpId}&test=true
 Content-Type: application/json
 ```
 
 Alternative (query string versioning):
 
 ```http
-POST /api/email/{smtpId}?api-version=1.0
+POST /api/emails?smtpId={smtpId}&api-version=1.0
 Content-Type: application/json
 ```
 
 Alternative (header versioning):
 
 ```http
-POST /api/email/{smtpId}
+POST /api/emails?smtpId={smtpId}
 X-Version: 1.0
 Content-Type: application/json
 ```
 
-### Send test email
+### Get email (by id)
 
 ```http
-POST /api/v1/email/{smtpId}/test
-Content-Type: application/json
+GET /api/v1/emails/{emailId}
 ```
 
 ### List SMTP configurations
 
 ```http
-GET /api/v1/email/configs
+GET /api/v1/smtp-configurations
+GET /api/v1/smtp-configurations/{smtpId}
 ```
 
 ### Version test endpoint
@@ -58,7 +74,7 @@ GET /test
 
 ## Request body: `EmailRequest`
 
-JSON property names are **PascalCase** (server uses `PropertyNamingPolicy = null`).
+JSON property names are **case-insensitive** (examples use PascalCase).
 
 | Property          | Type                  | Required | Notes                                                             |
 | ----------------- | --------------------- | -------- | ----------------------------------------------------------------- |
@@ -84,14 +100,18 @@ JSON property names are **PascalCase** (server uses `PropertyNamingPolicy = null
 
 ## Success responses
 
-### Send email / test email
+### Create email (send)
 
-HTTP `200`:
+HTTP `201` + `Location: /api/v1/emails/{emailId}`:
 
 ```json
 {
-    "message": "Email sent successfully using SMTP_1 (sender@example.com -> recipient@example.com)",
-    "emailId": "A3F2B1C9"
+    "id": "A3F2B1C9",
+    "status": "Sent",
+    "requestedSmtpId": 1,
+    "isTest": false,
+    "createdAt": "2026-01-07T12:34:56.789Z",
+    "receptionEmail": "recipient@example.com"
 }
 ```
 
@@ -106,4 +126,5 @@ The `emailId` is also appended to the subject: `... - [A3F2B1C9]`.
 | `403`  | IP blocked (anti-abuse)            | Plain text: `Your IP address has been blocked due to suspicious activity.`       |
 | `404`  | Unsupported API version            | JSON with supported versions                                                     |
 | `429`  | Too many requests per IP           | Plain text + `Retry-After: 60`                                                   |
+| `502`  | SMTP delivery failed               | `application/problem+json` (ProblemDetails)                                      |
 | `500`  | Unhandled error                    | JSON: `{ "error": "An unexpected error has occurred. Please try again later." }` |

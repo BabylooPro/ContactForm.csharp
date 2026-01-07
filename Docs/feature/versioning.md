@@ -11,13 +11,13 @@ You can pass the version using **one** of the methods below:
 1. **URL path segment** (recommended)
 
 ```text
-/api/v1/email/1
+/api/v1/emails?smtpId=1
 ```
 
 2. **Query string**
 
 ```text
-/api/email/1?api-version=1.0
+/api/emails?smtpId=1&api-version=1.0
 ```
 
 3. **Header**
