@@ -6,7 +6,7 @@
 [TODO_BADGE]: https://img.shields.io/badge/TODO-gren.svg
 [TODO_URL]: TODO.md
 [DOCS_BADGE]: https://img.shields.io/badge/DOCS-blue.svg
-[DOCS_URL]: docs/README.md
+[DOCS_URL]: Docs/README.md
 
 ![Version][VERSION_BADGE] [![License][LICENSE_BADGE]][LICENSE_URL] [![TODO][TODO_BADGE]][TODO_URL] [![DOCS][DOCS_BADGE]][DOCS_URL]
 
@@ -16,18 +16,18 @@ Backend RESTful API for contact form submissions: multi-SMTP failover, templates
 
 ##### Setup
 
--   [Getting started](docs/getting-started.md)
--   [Configuration (env vars, SMTP, CORS)](docs/configuration.md)
--   [Deployment (AWS Lambda + GitHub Actions)](docs/deployment/aws-lambda.md)
+-   [Getting started](Docs/getting-started.md)
+-   [Configuration (env vars, SMTP, CORS)](Docs/configuration.md)
+-   [Deployment (AWS Lambda + GitHub Actions)](Docs/deployment/aws-lambda.md)
 
 ##### Feature
 
--   [API reference (endpoints, payloads, responses)](docs/feature/api.md)
--   [API versioning](docs/feature/versioning.md)
--   [Rate limiting & anti-abuse](docs/feature/rate-limiting.md)
--   [Email templates](docs/feature/templates.md)
--   [Error handling](docs/feature/error-handling.md)
--   [Security](docs/feature/security.md)
+-   [API reference (endpoints, payloads, responses)](Docs/feature/api.md)
+-   [API versioning](Docs/feature/versioning.md)
+-   [Rate limiting & anti-abuse](Docs/feature/rate-limiting.md)
+-   [Email templates](Docs/feature/templates.md)
+-   [Error handling](Docs/feature/error-handling.md)
+-   [Security](Docs/feature/security.md)
 
 ## Quick start
 
@@ -53,7 +53,7 @@ Optional (prod CORS allow-list):
 
 -   `CORS_{INDEX}_ORIGIN`
 
-See [docs/configuration.md](docs/configuration.md).
+See [Docs/configuration.md](Docs/configuration.md).
 
 ## API
 
@@ -73,11 +73,11 @@ curl -X POST "http://localhost:5108/api/v1/emails?smtpId=1" \
   -d '{"Email":"sender@example.com","Username":"John Doe","Message":"Hello"}'
 ```
 
-Details: [docs/api.md](docs/feature/api.md) and [docs/versioning.md](docs/feature/versioning.md).
+Details: [Docs/api.md](Docs/feature/api.md) and [Docs/versioning.md](Docs/feature/versioning.md).
 
 ## Deployment
 
--   AWS Lambda + GitHub Actions: [docs/deployment/aws-lambda.md](docs/deployment/aws-lambda.md)
+-   AWS Lambda + GitHub Actions: [Docs/deployment/aws-lambda.md](Docs/deployment/aws-lambda.md)
 
 ## License
 
