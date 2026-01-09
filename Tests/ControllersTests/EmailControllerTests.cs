@@ -118,28 +118,27 @@ namespace Tests.ControllersTests
             Assert.Equal("ABC12345", body.Id);
         }
 
-        // TEST FOR DEFAULT SMTP ID SELECTION (LOWEST INDEX)
+        // TEST FOR DEFAULT SMTP ID SELECTION (FIRST IN LIST)
         [Fact]
-        public async Task CreateEmail_WithoutSmtpId_UsesLowestConfiguredIndex()
+        public async Task CreateEmail_WithoutSmtpId_UsesFirstConfiguredIndex()
         {
-            // ARRANGE - CONFIGS OUT OF ORDER
+            // ARRANGE - CONFIGS OUT OF ORDER (FIRST ELEMENT HAS INDEX 2, SECOND HAS INDEX 1)
             _emailServiceMock.Setup(x => x.GetAllSmtpConfigs()).Returns([new() { Index = 2 }, new() { Index = 1 }]);
             var request = new EmailRequest { Email = "test@example.com", Message = "Test message" };
 
             // ACT - SEND EMAIL
-            _emailServiceMock
-                .Setup(x => x.SendEmailAsync(It.IsAny<EmailRequest>(), It.IsAny<int>(), false))
-                .Callback<EmailRequest, int, bool>((req, id, test) => req.EmailId = "LOWEST001")
+            _emailServiceMock.Setup(x => x.SendEmailAsync(It.IsAny<EmailRequest>(), It.IsAny<int>(), false))
+                .Callback<EmailRequest, int, bool>((req, id, test) => req.EmailId = "FIRST001")
                 .ReturnsAsync(true);
 
             // ACT - CREATE EMAIL
             var result = await _controller.CreateEmail(request);
 
-            // ASSERT - SEND CALLED WITH LOWEST INDEX AND CHECK RESULT
-            _emailServiceMock.Verify(x => x.SendEmailAsync(It.IsAny<EmailRequest>(), 1, false), Times.Once);
+            // ASSERT - SEND CALLED WITH FIRST ELEMENT INDEX (2) AND CHECK RESULT
+            _emailServiceMock.Verify(x => x.SendEmailAsync(It.IsAny<EmailRequest>(), 2, false), Times.Once);
             var created = Assert.IsType<CreatedResult>(result);
             var body = Assert.IsType<EmailResource>(created.Value);
-            Assert.Equal(1, body.RequestedSmtpId);
+            Assert.Equal(2, body.RequestedSmtpId);
         }
 
         // TEST FOR DEFAULT SMTP ID WHEN NO CONFIGS ARE AVAILABLE

@@ -5,8 +5,6 @@
 **_New features to add_**
 
 -   [ ] **add:** system of catch all email service
-Translation:
--   [ ] **add:** if no SMTP is specified in URL, the request is sent using the first SMTP configuration listed
 -   [ ] **add:** system that sends a test email in production once per month to ensure the API is working correctly (since it’s very likely that no emails are received for months)
 -   [ ] **add:** make the API strict RESTful (HATEOAS links, persistence for `Email` resources, cache/ETag, reduce exposure of SMTP implementation details in public contract)
 
@@ -18,6 +16,7 @@ Translation:
 
 #### DONE
 
+-   [x] **added:** if no SMTP is specified in URL, the request is sent using the first SMTP configuration listed
 -   [x] **fixed:** clarify and handle ambiguous API version (when both query string and header are present) - now prioritizes query string over header and removes header to avoid ambiguity
 -   [x] **added:** unit or integration test to ensure all critical environment variables (e.g. `SMTP_2_PASSWORD`) are properly initialized before the application starts
 -   [x] **fixed:** security headers warnings (ASP0015) by using strongly-typed header properties instead of string indexers

@@ -21,18 +21,15 @@ namespace API.Controllers
         // CREATE A NEW EMAIL RESOURCE (SERVER SENDS EMAIL SYNCHRONOUSLY)
         // - POST /api/v1/emails?smtpId=1
         // - POST /api/v1/emails?smtpId=1&test=true
+        // - POST /api/v1/emails (USES FIRST SMTP CONFIGURATION IF NO smtpId SPECIFIED)
         [HttpPost]
         public async Task<IActionResult> CreateEmail([FromBody] EmailRequest request, [FromQuery] int? smtpId = null, [FromQuery] bool test = false)
         {
-            // RESOLVE SMTP ID (DEFAULT: LOWEST CONFIGURED INDEX)
-            var resolvedSmtpId = smtpId ?? ResolveDefaultSmtpId();
+            var resolvedSmtpId = smtpId ?? ResolveDefaultSmtpId(); // RESOLVE SMTP ID (DEFAULT: FIRST SMTP CONFIGURATION IN LIST)
 
             try
             {
-                // SENDING EMAIL
                 var success = await _emailService.SendEmailAsync(request, resolvedSmtpId, test);
-
-                // ENSURE EMAIL ID EXISTS (EMAILSERVICE SHOULD SET IT)
                 var emailId = string.IsNullOrWhiteSpace(request.EmailId) ? Guid.NewGuid().ToString("N")[..8].ToUpperInvariant() : request.EmailId!;
 
                 // STORE RESOURCE STATE FOR GET /emails/{id}
@@ -48,15 +45,12 @@ namespace API.Controllers
 
                 _emailStore.Upsert(resource);
 
-                if (!success)
-                {
-                    // DELIVERY FAILURE IS A GATEWAY-LIKE ERROR (UPSTREAM SMTP)
-                    return Problem(
-                        title: "Email delivery failed",
-                        detail: "Failed to send email after trying all available SMTP configurations.",
-                        statusCode: StatusCodes.Status502BadGateway
-                    );
-                }
+                // DELIVERY FAILURE IS A GATEWAY-LIKE ERROR (UPSTREAM SMTP)
+                if (!success) return Problem(
+                    title: "Email delivery failed",
+                    detail: "Failed to send email after trying all available SMTP configurations.",
+                    statusCode: StatusCodes.Status502BadGateway
+                );
 
                 var location = BuildEmailLocation(emailId);
                 return Created(location, resource);
@@ -76,26 +70,21 @@ namespace API.Controllers
         }
 
         // HELPER METHOD TO RESOLVE DEFAULT SMTP ID
+        // - RETURNS: FIRST SMTP CONFIG INDEX IF NOT SPECIFIED IN URL
         private int ResolveDefaultSmtpId()
         {
             var configs = _emailService.GetAllSmtpConfigs();
             if (configs.Count == 0) throw new InvalidOperationException("No SMTP configurations are available.");
-
-            return configs.Min(c => c.Index);
+            return configs[0].Index;
         }
 
         // HELPER METHOD TO BUILD EMAIL LOCATION
         private string BuildEmailLocation(string emailId)
         {
-            // KEEP LOCATION CONSISTENT WITH THE CALLER'S VERSIONING METHOD
             var path = HttpContext?.Request.Path.Value;
-
             if (string.IsNullOrWhiteSpace(path)) path = "/api/v1/emails";
-
-            // URL SEGMENT VERSIONING (EX: /api/v1/emails)
             if (path.StartsWith("/api/v", StringComparison.OrdinalIgnoreCase)) return $"{path.TrimEnd('/')}/{emailId}";
 
-            // QUERY/HEADER VERSIONING (EX: /api/emails?api-version=1.0 OR X-Version: 1.0)
             var version = HttpContext!.GetRequestedApiVersion()?.ToString() ?? "1.0";
             return $"/api/emails/{emailId}?api-version={version}";
         }

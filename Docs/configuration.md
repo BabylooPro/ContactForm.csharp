@@ -21,6 +21,8 @@ Schema (see `API/Models/SmtpConfig.cs`):
 -   `TestEmail` (string): sender address for test emails
 -   `Description` (string)
 
+> **Note:** The order of SMTP configurations in the array matters. If no `smtpId` is specified in the API request, the first SMTP configuration in the list (first entry in the array) will be used by default.
+
 ### Required environment variables
 
 -   `SMTP_CONFIGURATIONS`

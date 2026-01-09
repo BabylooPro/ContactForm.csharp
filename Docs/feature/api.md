@@ -24,6 +24,13 @@ POST /api/v1/emails?smtpId={smtpId}
 Content-Type: application/json
 ```
 
+Without `smtpId` (uses first SMTP configuration):
+
+```http
+POST /api/v1/emails
+Content-Type: application/json
+```
+
 Optional test mode:
 
 ```http
@@ -45,6 +52,8 @@ POST /api/emails?smtpId={smtpId}
 X-Version: 1.0
 Content-Type: application/json
 ```
+
+> **Note:** The `smtpId` query parameter is optional. If not specified, the request will be sent using the first SMTP configuration in the list (the first entry in `SMTP_CONFIGURATIONS`).
 
 ### Get email (by id)
 
