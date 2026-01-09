@@ -17,3 +17,4 @@ This documentation is split into multiple focused files.
 -   [Error handling](feature/error-handling.md)
 -   [Security](feature/security.md)
 -   [Monthly test email service](feature/monthly-test-email.md)
+-   [Testing](feature/testing.md)
