@@ -16,3 +16,4 @@ This documentation is split into multiple focused files.
 -   [Email templates](feature/templates.md)
 -   [Error handling](feature/error-handling.md)
 -   [Security](feature/security.md)
+-   [Monthly test email service](feature/monthly-test-email.md)

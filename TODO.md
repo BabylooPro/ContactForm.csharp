@@ -2,10 +2,11 @@
 
 **_Bugs to fix_**
 
+-   [ ] **fix:** Observe how the API behaves on AWS Lambda -> verify that LambdaEntryPoint works properly and that data-preserving features remain reliable
+
 **_New features to add_**
 
 -   [ ] **add:** system of catch all email service
--   [ ] **add:** system that sends a test email in production once per month to ensure the API is working correctly (since it’s very likely that no emails are received for months)
 -   [ ] **add:** make the API strict RESTful (HATEOAS links, persistence for `Email` resources, cache/ETag, reduce exposure of SMTP implementation details in public contract)
 
 ---
@@ -16,6 +17,7 @@
 
 #### DONE
 
+-   [x] **add:** system that sends a test email in production once per month to ensure the API is working correctly (since it’s very likely that no emails are received for months)
 -   [x] **added:** if no SMTP is specified in URL, the request is sent using the first SMTP configuration listed
 -   [x] **fixed:** clarify and handle ambiguous API version (when both query string and header are present) - now prioritizes query string over header and removes header to avoid ambiguity
 -   [x] **added:** unit or integration test to ensure all critical environment variables (e.g. `SMTP_2_PASSWORD`) are properly initialized before the application starts

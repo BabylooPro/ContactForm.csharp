@@ -77,3 +77,11 @@ Notes:
 
 -   All localhost origins are automatically allowed in code (`http://localhost:*`, `https://localhost:*`, `127.0.0.1`).
 -   Origins are read sequentially starting at index 1 until a variable is missing.
+
+## Monthly test email service
+
+Optional environment variable for testing:
+
+-   `MONTHLY_TEST_EMAIL_FORCE_ENABLE`: Set to `true` to enable the monthly test email service in non-production environments (for testing purposes only)
+
+See [Monthly test email service](feature/monthly-test-email.md) for details.

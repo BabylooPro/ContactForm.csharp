@@ -20,6 +20,9 @@ namespace API
         {
             try
             {
+                // LOADING ENVIRONMENT VARIABLES FIRST (BEFORE CREATING BUILDER)
+                DotEnv.Load();
+                
                 // CREATING WEB APPLICATION
                 var builder = WebApplication.CreateBuilder(args);
                 ConfigureServices(builder.Services);
@@ -46,8 +49,6 @@ namespace API
 
         public static void ConfigureServices(IServiceCollection services)
         {
-            // LOADING ENVIRONMENT VARIABLES
-            DotEnv.Load();
 
             // GET SMTP CONFIGURATIONS FROM ENVIRONMENT VARIABLE
             var config = EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
@@ -114,6 +115,9 @@ namespace API
 
             // REGISTER IP PROTECTION SERVICES
             services.AddSingleton<IIpProtectionService, IpProtectionService>();
+
+            // REGISTER MONTHLY TEST EMAIL SERVICE (BACKGROUND SERVICE)
+            services.AddHostedService<MonthlyTestEmailService>();
 
             // ADDING CONTROLLER SUPPORT
             services.AddControllers();
