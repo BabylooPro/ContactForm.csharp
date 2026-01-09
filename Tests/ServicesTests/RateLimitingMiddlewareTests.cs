@@ -1,6 +1,8 @@
 using System.Net;
 using API.Middleware;
+using API.Models;
 using API.Services;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace Tests.ServicesTests
@@ -10,12 +12,17 @@ namespace Tests.ServicesTests
         private readonly Mock<ILogger<RateLimitingMiddleware>> _loggerMock;
         private readonly Mock<IIpProtectionService> _ipProtectionServiceMock;
         private readonly RequestDelegate _nextMock;
+        private readonly IOptions<RateLimitingOptions> _rateLimitingOptions;
 
         public RateLimitingMiddlewareTests()
         {
             _loggerMock = new Mock<ILogger<RateLimitingMiddleware>>();
             _ipProtectionServiceMock = new Mock<IIpProtectionService>();
             _nextMock = (HttpContext httpContext) => Task.CompletedTask;
+
+            // SETUP DEFAULT RATE LIMITING OPTIONS FOR TESTS
+            var options = new RateLimitingOptions { PermitLimit = 10, WindowMinutes = 1, QueueLimit = 0 };
+            _rateLimitingOptions = Options.Create(options);
         }
 
         // TEST FOR BLOCKING REQUESTS WHEN IP IS BLOCKED
@@ -29,7 +36,7 @@ namespace Tests.ServicesTests
             var responseStream = new MemoryStream();
             context.Response.Body = responseStream;
             _ipProtectionServiceMock.Setup(x => x.IsIpBlocked(clientIp)).Returns(true);
-            var middleware = new RateLimitingMiddleware(_nextMock, _loggerMock.Object, _ipProtectionServiceMock.Object);
+            var middleware = new RateLimitingMiddleware(_nextMock, _loggerMock.Object, _ipProtectionServiceMock.Object, _rateLimitingOptions);
 
             // ACT - CALL MIDDLEWARE
             await middleware.InvokeAsync(context);
@@ -57,7 +64,7 @@ namespace Tests.ServicesTests
             context.Request.Path = path;
             context.Request.Headers.UserAgent = userAgent;
             _ipProtectionServiceMock.Setup(x => x.IsIpBlocked(clientIp)).Returns(false);
-            var middleware = new RateLimitingMiddleware(_nextMock, _loggerMock.Object, _ipProtectionServiceMock.Object);
+            var middleware = new RateLimitingMiddleware(_nextMock, _loggerMock.Object, _ipProtectionServiceMock.Object, _rateLimitingOptions);
 
             // ACT - CALL MIDDLEWARE
             await middleware.InvokeAsync(context);
@@ -78,7 +85,7 @@ namespace Tests.ServicesTests
             var responseStream = new MemoryStream();
             context.Response.Body = responseStream;
             _ipProtectionServiceMock.Setup(x => x.IsIpBlocked(clientIp)).Returns(false);
-            var middleware = new RateLimitingMiddleware(_nextMock, _loggerMock.Object, _ipProtectionServiceMock.Object);
+            var middleware = new RateLimitingMiddleware(_nextMock, _loggerMock.Object, _ipProtectionServiceMock.Object, _rateLimitingOptions);
 
             // ACT - EXCEED LIMIT
             for (int i = 0; i < 10; i++)

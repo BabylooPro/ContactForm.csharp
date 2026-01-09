@@ -1,5 +1,7 @@
 using System.Threading.RateLimiting;
+using API.Models;
 using API.Services;
+using Microsoft.Extensions.Options;
 
 namespace API.Middleware
 {
@@ -9,19 +11,21 @@ namespace API.Middleware
         private readonly ILogger<RateLimitingMiddleware> _logger;
         private readonly FixedWindowRateLimiter _rateLimiter;
         private readonly IIpProtectionService _ipProtectionService;
+        private readonly RateLimitingOptions _options;
 
-        public RateLimitingMiddleware(RequestDelegate next, ILogger<RateLimitingMiddleware> logger, IIpProtectionService ipProtectionService) {
+        public RateLimitingMiddleware(RequestDelegate next, ILogger<RateLimitingMiddleware> logger, IIpProtectionService ipProtectionService, IOptions<RateLimitingOptions> rateLimitingOptions) {
             _next = next;
             _logger = logger;
             _ipProtectionService = ipProtectionService;
+            _options = rateLimitingOptions.Value;
             
-            // CREATE A RATE LIMITER WITH 10 REQUESTS PER MINUTE PER IP
+            // CREATE A RATE LIMITER FROM CONFIGURATION
             _rateLimiter = new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 10,
-                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = _options.PermitLimit,
+                Window = TimeSpan.FromMinutes(_options.WindowMinutes),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0 // NO QUEUE - REJECT IMMEDIATELY
+                QueueLimit = _options.QueueLimit
             });
         }
 
@@ -56,7 +60,8 @@ namespace API.Middleware
             {
                 _logger.LogWarning("Rate limit exceeded for IP: {ClientIp}", clientIp);
                 context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-                context.Response.Headers.RetryAfter = "60"; // RETRY AFTER 60 SECONDS
+                var retryAfterSeconds = _options.WindowMinutes * 60;
+                context.Response.Headers.RetryAfter = retryAfterSeconds.ToString();
                 await context.Response.WriteAsync("Too many requests. Please try again later.");
             }
         }

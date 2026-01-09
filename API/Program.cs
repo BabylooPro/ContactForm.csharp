@@ -2,6 +2,7 @@ using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
 using API.Interfaces;
 using API.Middleware;
+using API.Models;
 using API.Services;
 using API.Utilities;
 using dotenv.net;
@@ -25,7 +26,7 @@ namespace API
                 
                 // CREATING WEB APPLICATION
                 var builder = WebApplication.CreateBuilder(args);
-                ConfigureServices(builder.Services);
+                ConfigureServices(builder.Services, builder.Configuration);
 
                 // BUILDING WEB APPLICATION
                 var app = builder.Build();
@@ -47,8 +48,13 @@ namespace API
             }
         }
 
-        public static void ConfigureServices(IServiceCollection services)
+        public static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
         {
+            // CONFIGURE OPTIONS FROM APPSETTINGS.JSON
+            services.Configure<RateLimitingOptions>(configuration.GetSection(RateLimitingOptions.SectionName));
+            services.Configure<Models.ApiVersioningOptions>(configuration.GetSection(Models.ApiVersioningOptions.SectionName));
+            services.Configure<SwaggerOptions>(configuration.GetSection(SwaggerOptions.SectionName));
+            services.Configure<SecurityOptions>(configuration.GetSection(SecurityOptions.SectionName));
 
             // GET SMTP CONFIGURATIONS FROM ENVIRONMENT VARIABLE
             var config = EnvironmentUtils.LoadSmtpConfigurationsFromEnvironment();
@@ -122,13 +128,18 @@ namespace API
             // ADDING CONTROLLER SUPPORT
             services.AddControllers();
 
-            // ADDING API VERSINNING SUPPORT
+            // ADDING API VERSIONING SUPPORT
+            var apiVersioningOptions = configuration.GetSection(Models.ApiVersioningOptions.SectionName).Get<Models.ApiVersioningOptions>() ?? new Models.ApiVersioningOptions();
+            var defaultVersionParts = apiVersioningOptions.DefaultVersion.Split('.');
+            var majorVersion = int.Parse(defaultVersionParts[0]);
+            var minorVersion = defaultVersionParts.Length > 1 ? int.Parse(defaultVersionParts[1]) : 0;
+            
             services.AddApiVersioning(options =>
             {
-                // DEFAULT VERSION
-                options.DefaultApiVersion = new ApiVersion(1, 0);
-                options.AssumeDefaultVersionWhenUnspecified = false;
-                options.ReportApiVersions = true;
+                // DEFAULT VERSION FROM CONFIGURATION
+                options.DefaultApiVersion = new ApiVersion(majorVersion, minorVersion);
+                options.AssumeDefaultVersionWhenUnspecified = apiVersioningOptions.AssumeDefaultVersionWhenUnspecified;
+                options.ReportApiVersions = apiVersioningOptions.ReportApiVersions;
                 options.UnsupportedApiVersionStatusCode = 404;
 
                 // CUSTOM API VERSION READER PRIORITIZING QUERY STRING
@@ -157,6 +168,10 @@ namespace API
 
         public static void ConfigureApp(IApplicationBuilder app)
         {
+            var configuration = app.ApplicationServices.GetRequiredService<IConfiguration>();
+            var swaggerOptions = configuration.GetSection(SwaggerOptions.SectionName).Get<SwaggerOptions>() ?? new SwaggerOptions();
+            var securityOptions = configuration.GetSection(SecurityOptions.SectionName).Get<SecurityOptions>() ?? new SecurityOptions();
+            
             // CONFIGURING MIDDLEWARE
             app.UseApiVersionCheck();
             app.UseMiddleware<ErrorHandlingMiddleware>();
@@ -177,24 +192,29 @@ namespace API
             app.UseRouting();
             app.UseApiVersionError();
             app.UseAuthorization();
-            app.UseHttpsRedirection();
+
+            // HTTPS REDIRECTION BASED ON CONFIGURATION
+            if (securityOptions.RequireHttps) app.UseHttpsRedirection();
 
             // RETRIEVE API VERSION DESCRIPTION PROVIDER FROM SERVICE PROVIDER
             var apiVersionDescriptionProvider = app.ApplicationServices.GetRequiredService<IApiVersionDescriptionProvider>();
 
-            // ADDING SWAGGER UI
-            app.UseSwagger();
-            app.UseSwaggerUI(options =>
+            // ADDING SWAGGER UI (ONLY IF ENABLED IN CONFIGURATION)
+            if (swaggerOptions.Enabled)
             {
-                foreach (var description in apiVersionDescriptionProvider.ApiVersionDescriptions)
+                app.UseSwagger();
+                app.UseSwaggerUI(options =>
                 {
-                    options.SwaggerEndpoint(
-                        $"/swagger/{description.GroupName}/swagger.json",
-                        $"Contact Form API {description.GroupName.ToUpperInvariant()}"
-                    );
-                }
-                options.RoutePrefix = string.Empty; // SERVES SWAGGER UI AT THE ROOT URL
-            });
+                    foreach (var description in apiVersionDescriptionProvider.ApiVersionDescriptions)
+                    {
+                        options.SwaggerEndpoint(
+                            $"/swagger/{description.GroupName}/swagger.json",
+                            $"Contact Form API {description.GroupName.ToUpperInvariant()}"
+                        );
+                    }
+                    options.RoutePrefix = swaggerOptions.RoutePrefix; // USE CONFIGURED ROUTE PREFIX
+                });
+            }
 
             // CONFIGURE ENDPOINT ROUTE FOR CONTROLLERS
             app.UseEndpoints(endpoints =>

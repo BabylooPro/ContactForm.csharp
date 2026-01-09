@@ -12,9 +12,9 @@ namespace API
         // CONFIGURE WEB HOST BUILDER
         protected override void Init(IWebHostBuilder builder)
         {
-            builder.ConfigureServices(services =>
+            builder.ConfigureServices((context, services) =>
             {
-                Program.ConfigureServices(services);
+                Program.ConfigureServices(services, context.Configuration);
 
                 // ENSURE VERSIONING SERVICES ARE REGISTERED
                 if (!services.Any(s => s.ServiceType == typeof(IApiVersionDescriptionProvider)))
