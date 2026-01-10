@@ -1,6 +1,7 @@
 # ContactForm API (.NET 8 + AWS Lambda)
 
 [VERSION_BADGE]: https://img.shields.io/badge/dotnet-8.0.+-purple.svg
+[DOTNET_8_URL]: https://dotnet.microsoft.com/download/dotnet/8.0
 [LICENSE_BADGE]: https://img.shields.io/badge/license-MIT-blue.svg
 [LICENSE_URL]: LICENSE
 [TODO_BADGE]: https://img.shields.io/badge/TODO-gren.svg
@@ -8,7 +9,7 @@
 [DOCS_BADGE]: https://img.shields.io/badge/DOCS-blue.svg
 [DOCS_URL]: Docs/README.md
 
-![Version][VERSION_BADGE] [![License][LICENSE_BADGE]][LICENSE_URL] [![TODO][TODO_BADGE]][TODO_URL] [![DOCS][DOCS_BADGE]][DOCS_URL]
+[![Version][VERSION_BADGE]][DOTNET_8_URL] [![License][LICENSE_BADGE]][LICENSE_URL] [![TODO][TODO_BADGE]][TODO_URL] [![DOCS][DOCS_BADGE]][DOCS_URL]
 
 Backend RESTful API for contact form submissions: multi-SMTP failover, templates, attachments, API versioning, rate limiting. Runs locally or on AWS Lambda.
 
