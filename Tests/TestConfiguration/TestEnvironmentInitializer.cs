@@ -10,8 +10,7 @@ namespace Tests.TestConfiguration
         [ModuleInitializer]
         public static void Initialize()
         {
-            // SET DEFAULT SMTP CONFIGURATIONS FOR ALL TESTS
-            // THIS ENSURES ENVIRONMENT VARIABLES ARE SET BEFORE PROGRAM.CONFIGURESERVICES IS CALLED
+            // SET DEFAULT SMTP ENVIRONMENT VARIABLES FOR TESTS
             var testConfigurations = new List<SmtpConfig>
             {
                 new()
@@ -24,36 +23,28 @@ namespace Tests.TestConfiguration
                 },
             };
 
-            // SETTING ENVIRONMENT VARIABLES FOR TESTING
+            // PREPARE THE SMTP CONFIGURATION AND DETERMINE IF AN EXISTING ENVIRONMENT VARIABLE SHOULD BE OVERRIDDEN
             var smtpConfigurationsJson = JsonSerializer.Serialize(testConfigurations);
-            
-            // VALIDATE EXISTING VALUE - IF IT EXISTS BUT IS INVALID (NOT A JSON ARRAY), REPLACE IT
             var existingValue = Environment.GetEnvironmentVariable("SMTP_CONFIGURATIONS");
-            if (string.IsNullOrWhiteSpace(existingValue))
+            var shouldOverride = string.IsNullOrWhiteSpace(existingValue);
+
+            // DETERMINE IF SMTP_CONFIGURATIONS SHOULD BE OVERRIDDEN
+            if (!shouldOverride && existingValue != null)
             {
-                Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", smtpConfigurationsJson);
-            }
-            else
-            {
-                // CHECK IF EXISTING VALUE IS A VALID JSON ARRAY - IF NOT, REPLACE IT
                 var trimmedValue = existingValue.Trim();
-                if (!trimmedValue.StartsWith('['))
+                if (trimmedValue.StartsWith('"') && trimmedValue.EndsWith('"') && trimmedValue.Length > 1)
                 {
-                    Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", smtpConfigurationsJson);
+                    trimmedValue = trimmedValue[1..^1].Trim();
                 }
+
+                shouldOverride = !trimmedValue.StartsWith('[') || trimmedValue == "***" || trimmedValue.Length < 3;
             }
-            if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SMTP_0_PASSWORD")))
-            {
-                Environment.SetEnvironmentVariable("SMTP_0_PASSWORD", "test-password");
-            }
-            if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SMTP_RECEPTION_EMAIL")))
-            {
-                Environment.SetEnvironmentVariable("SMTP_RECEPTION_EMAIL", "reception@example.com");
-            }
-            if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SMTP_CATCHALL_EMAIL")))
-            {
-                Environment.SetEnvironmentVariable("SMTP_CATCHALL_EMAIL", "catchall@example.com");
-            }
+            
+            // SET DEFAULT TEST ENVIRONMENT VARIABLES
+            Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", smtpConfigurationsJson);
+            Environment.SetEnvironmentVariable("SMTP_0_PASSWORD", "test-password");
+            Environment.SetEnvironmentVariable("SMTP_RECEPTION_EMAIL", "reception@example.com");
+            Environment.SetEnvironmentVariable("SMTP_CATCHALL_EMAIL", "catchall@example.com");
         }
     }
 }

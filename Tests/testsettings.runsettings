@@ -3,6 +3,10 @@
   <RunConfiguration>
     <!-- ENVIRONNEMENT VARIABLE -->
     <EnvironmentVariables>
+        <SMTP_CONFIGURATIONS>[{"Index":0,"Host":"smtp.example.com","Port":465,"Email":"test@example.com","Description":"Test SMTP"}]</SMTP_CONFIGURATIONS>
+        <SMTP_0_PASSWORD>test-password</SMTP_0_PASSWORD>
+        <SMTP_RECEPTION_EMAIL>reception@example.com</SMTP_RECEPTION_EMAIL>
+        <SMTP_CATCHALL_EMAIL>catchall@example.com</SMTP_CATCHALL_EMAIL>
         <SMTP_1_PASSWORD>test-password-1</SMTP_1_PASSWORD>
         <SMTP_2_PASSWORD>test-password-2</SMTP_2_PASSWORD>
         <SMTP_1_PASSWORD_TEST>test-passwod-1-test</SMTP_1_PASSWORD_TEST>

@@ -21,8 +21,9 @@ namespace API
         {
             try
             {
-                // LOADING ENVIRONMENT VARIABLES FIRST (BEFORE CREATING BUILDER)
+                // LOADING ENVIRONMENT VARIABLES
                 DotEnv.Load();
+                EnsureTestEnvironmentVariables();
                 
                 // CREATING WEB APPLICATION
                 var builder = WebApplication.CreateBuilder(args);
@@ -232,6 +233,27 @@ namespace API
 
             // VERIFY SMTP CONNECTIONS BEFORE STARTING THE APP
             EnsureSmtpConnectionsAsync(app.Services).GetAwaiter().GetResult();
+        }
+
+        // SET FALLBACK TEST ENVIRONMENT VARIABLES AFTER DOTENV.LOAD()
+        private static void EnsureTestEnvironmentVariables()
+        {
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SMTP_CONFIGURATIONS")))
+            {
+                var testAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name == "Tests");
+                if (testAssembly != null)
+                {
+                    var defaultConfig = "[{\"Index\":0,\"Host\":\"smtp.example.com\",\"Port\":465,\"Email\":\"test@example.com\",\"Description\":\"Test SMTP\"}]";
+                    Environment.SetEnvironmentVariable("SMTP_CONFIGURATIONS", defaultConfig);
+
+                    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SMTP_0_PASSWORD")))
+                        Environment.SetEnvironmentVariable("SMTP_0_PASSWORD", "test-password");
+                    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SMTP_RECEPTION_EMAIL")))
+                        Environment.SetEnvironmentVariable("SMTP_RECEPTION_EMAIL", "reception@example.com");
+                    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SMTP_CATCHALL_EMAIL")))
+                        Environment.SetEnvironmentVariable("SMTP_CATCHALL_EMAIL", "catchall@example.com");
+                }
+            }
         }
 
         public static async Task EnsureSmtpConnectionsAsync(IServiceProvider serviceProvider)
